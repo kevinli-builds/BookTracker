@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
 // Participant redeems an invite code to join the study. No auth — gated by the
 // code itself. Idempotent: re-entering the same code on the same device is OK.
-router.post('/redeem', async (req, res) => {
+router.post('/redeem', asyncHandler(async (req, res) => {
   const { code, userId } = req.body as { code?: string; userId?: string };
   if (!code || !userId) {
     res.status(400).json({ error: 'code and userId required' });
@@ -51,6 +52,6 @@ router.post('/redeem', async (req, res) => {
   }
 
   res.json({ ...user, hasAccess: true });
-});
+}));
 
 export default router;

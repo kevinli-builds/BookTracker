@@ -3,10 +3,11 @@ import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
 import { signToken, requireAuth } from '../lib/auth';
 import { generateCode } from '../lib/inviteCode';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   const { email, password } = req.body as { email: string; password: string };
   if (!email || !password) { res.status(400).json({ error: 'email and password required' }); return; }
 
@@ -17,10 +18,10 @@ router.post('/login', async (req, res) => {
   if (!valid) { res.status(401).json({ error: 'Invalid credentials' }); return; }
 
   res.json({ token: signToken(provisioner.id) });
-});
+}));
 
 // First-time setup endpoint — disable or protect this after initial account creation
-router.post('/register', async (req, res) => {
+router.post('/register', asyncHandler(async (req, res) => {
   const { email, password, setupKey } = req.body as { email: string; password: string; setupKey?: string };
   if (setupKey !== process.env.SETUP_KEY) {
     res.status(403).json({ error: 'Invalid setup key' });
@@ -34,11 +35,11 @@ router.post('/register', async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 12);
   const provisioner = await prisma.provisioner.create({ data: { email, passwordHash } });
   res.status(201).json({ id: provisioner.id, email: provisioner.email });
-});
+}));
 
 router.use(requireAuth);
 
-router.get('/users', async (_req, res) => {
+router.get('/users', asyncHandler(async (_req, res) => {
   const users = await prisma.user.findMany({
     include: {
       streak: true,
@@ -47,17 +48,17 @@ router.get('/users', async (_req, res) => {
     orderBy: { createdAt: 'desc' },
   });
   res.json(users);
-});
+}));
 
-router.get('/goals', async (_req, res) => {
+router.get('/goals', asyncHandler(async (_req, res) => {
   const templates = await prisma.goalTemplate.findMany({
     include: { _count: { select: { userGoals: true } } },
     orderBy: { createdAt: 'desc' },
   });
   res.json(templates);
-});
+}));
 
-router.post('/goals', async (req, res) => {
+router.post('/goals', asyncHandler(async (req, res) => {
   const { title, description, type, criteria, randomPool } = req.body as {
     title: string;
     description: string;
@@ -75,24 +76,24 @@ router.post('/goals', async (req, res) => {
     data: { title, description, type, criteria, randomPool: randomPool ?? false },
   });
   res.status(201).json(template);
-});
+}));
 
-router.patch('/goals/:id', async (req, res) => {
+router.patch('/goals/:id', asyncHandler(async (req, res) => {
   const { title, description, type, criteria, randomPool } = req.body;
   const template = await prisma.goalTemplate.update({
     where: { id: req.params.id },
     data: { title, description, type, criteria, randomPool },
   });
   res.json(template);
-});
+}));
 
-router.delete('/goals/:id', async (req, res) => {
+router.delete('/goals/:id', asyncHandler(async (req, res) => {
   await prisma.goalTemplate.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
-});
+}));
 
 // Randomly assign goals from the pool to all users (or a specified subset)
-router.post('/assign', async (req, res) => {
+router.post('/assign', asyncHandler(async (req, res) => {
   const { userIds, deadline } = req.body as { userIds?: string[]; deadline?: string };
 
   const pool = await prisma.goalTemplate.findMany({ where: { randomPool: true } });
@@ -122,13 +123,13 @@ router.post('/assign', async (req, res) => {
   }
 
   res.json({ assigned });
-});
+}));
 
 // ── Invite codes ─────────────────────────────────────────────────────────────
 
 // Generate codes. Either pass { labels: ["P001", ...] } to create one
 // pre-labeled code per participant, or { count: N } for N unlabeled codes.
-router.post('/invites', async (req, res) => {
+router.post('/invites', asyncHandler(async (req, res) => {
   const { count, labels } = req.body as { count?: number; labels?: string[] };
 
   const requests: { label: string | null }[] = Array.isArray(labels) && labels.length > 0
@@ -155,34 +156,34 @@ router.post('/invites', async (req, res) => {
   }
 
   res.status(201).json(created);
-});
+}));
 
-router.get('/invites', async (_req, res) => {
+router.get('/invites', asyncHandler(async (_req, res) => {
   const invites = await prisma.inviteCode.findMany({
     include: { usedBy: { select: { displayName: true } } },
     orderBy: { createdAt: 'desc' },
   });
   res.json(invites);
-});
+}));
 
 // Revoke an unused code. Used codes can't be deleted (preserves participant link).
-router.delete('/invites/:id', async (req, res) => {
+router.delete('/invites/:id', asyncHandler(async (req, res) => {
   const invite = await prisma.inviteCode.findUnique({ where: { id: req.params.id } });
   if (!invite) { res.status(404).json({ error: 'Not found' }); return; }
   if (invite.usedByUserId) { res.status(409).json({ error: 'Cannot delete a redeemed code' }); return; }
   await prisma.inviteCode.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
-});
+}));
 
-router.get('/logs', async (_req, res) => {
+router.get('/logs', asyncHandler(async (_req, res) => {
   const logs = await prisma.readingLog.findMany({
     include: { user: { select: { displayName: true } } },
     orderBy: { loggedAt: 'desc' },
   });
   res.json(logs);
-});
+}));
 
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
   if (!currentPassword || !newPassword) {
     res.status(400).json({ error: 'currentPassword and newPassword required' });
@@ -203,9 +204,9 @@ router.post('/change-password', async (req, res) => {
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.provisioner.update({ where: { id: provisionerId }, data: { passwordHash } });
   res.json({ ok: true });
-});
+}));
 
-router.get('/data', async (_req, res) => {
+router.get('/data', asyncHandler(async (_req, res) => {
   const [totalUsers, totalLogs, totalGoals, completedGoals, feedbacks, topBooksRaw] = await Promise.all([
     prisma.user.count(),
     prisma.readingLog.count(),
@@ -252,6 +253,6 @@ router.get('/data', async (_req, res) => {
     goalCompletionRates,
     recentFeedback: feedbacks,
   });
-});
+}));
 
 export default router;

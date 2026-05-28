@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
 import { updateStreak } from '../lib/streak';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { userId, googleBooksId, title, author, coverUrl, minutesRead } = req.body as {
     userId: string;
     googleBooksId: string;
@@ -26,14 +27,14 @@ router.post('/', async (req, res) => {
   await updateStreak(userId);
 
   res.status(201).json(log);
-});
+}));
 
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', asyncHandler(async (req, res) => {
   const logs = await prisma.readingLog.findMany({
     where: { userId: req.params.userId },
     orderBy: { loggedAt: 'desc' },
   });
   res.json(logs);
-});
+}));
 
 export default router;

@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
 const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes';
 
-router.get('/search', async (req, res) => {
+router.get('/search', asyncHandler(async (req, res) => {
   const q = req.query.q as string;
   if (!q) { res.status(400).json({ error: 'q required' }); return; }
 
@@ -27,6 +28,6 @@ router.get('/search', async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Failed to search books' });
   }
-});
+}));
 
 export default router;

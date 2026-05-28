@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
-router.get('/templates', async (_req, res) => {
+router.get('/templates', asyncHandler(async (_req, res) => {
   const templates = await prisma.goalTemplate.findMany({ orderBy: { createdAt: 'desc' } });
   res.json(templates);
-});
+}));
 
-router.post('/self', async (req, res) => {
+router.post('/self', asyncHandler(async (req, res) => {
   const { userId, templateId, deadline } = req.body as {
     userId: string;
     templateId: string;
@@ -36,33 +37,33 @@ router.post('/self', async (req, res) => {
   });
 
   res.status(201).json(goal);
-});
+}));
 
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', asyncHandler(async (req, res) => {
   const goals = await prisma.userGoal.findMany({
     where: { userId: req.params.userId },
     include: { template: true },
     orderBy: { assignedAt: 'desc' },
   });
   res.json(goals);
-});
+}));
 
-router.patch('/:goalId/complete', async (req, res) => {
+router.patch('/:goalId/complete', asyncHandler(async (req, res) => {
   const goal = await prisma.userGoal.update({
     where: { id: req.params.goalId },
     data: { status: 'completed', completedAt: new Date() },
     include: { template: true },
   });
   res.json(goal);
-});
+}));
 
-router.patch('/:goalId/abandon', async (req, res) => {
+router.patch('/:goalId/abandon', asyncHandler(async (req, res) => {
   const goal = await prisma.userGoal.update({
     where: { id: req.params.goalId },
     data: { status: 'abandoned' },
     include: { template: true },
   });
   res.json(goal);
-});
+}));
 
 export default router;

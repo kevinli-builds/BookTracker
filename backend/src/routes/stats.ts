@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
   const [logs, streak, goals] = await Promise.all([
@@ -48,6 +49,6 @@ router.get('/:userId', async (req, res) => {
     completedGoals: goals.filter(g => g.status === 'completed').length,
     activeGoals: goals.filter(g => g.status === 'active').length,
   });
-});
+}));
 
 export default router;

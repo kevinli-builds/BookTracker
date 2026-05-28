@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
+import { asyncHandler } from '../lib/asyncHandler';
 
 const router = Router();
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { userId, userGoalId, rating, text } = req.body as {
     userId: string;
     userGoalId: string;
@@ -21,6 +22,6 @@ router.post('/', async (req, res) => {
   });
 
   res.status(201).json(feedback);
-});
+}));
 
 export default router;

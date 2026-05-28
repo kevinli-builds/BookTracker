@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 
@@ -25,6 +25,26 @@ app.use('/stats', statsRouter);
 app.use('/admin', adminRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Unknown routes → 404 JSON (instead of Express's default HTML page)
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Global error handler — catches anything thrown/rejected in route handlers
+// (forwarded by asyncHandler) plus malformed-JSON body parse errors. Logs the
+// real error server-side and returns a generic 500 so stack traces never leak.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err);
+  if (res.headersSent) return;
+  // express.json() sets err.status (e.g. 400) for malformed request bodies.
+  const status = (err as { status?: number; statusCode?: number })?.status
+    ?? (err as { statusCode?: number })?.statusCode
+    ?? 500;
+  res.status(status >= 400 && status < 500 ? status : 500).json({
+    error: status >= 400 && status < 500 ? 'Bad request' : 'Internal server error',
+  });
+});
 
 // Local dev only — Vercel handles routing in serverless mode
 if (!process.env.VERCEL) {
