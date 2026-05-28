@@ -8,7 +8,80 @@ import {
   updateGoal,
 } from '../api/client';
 
-const GOAL_TYPES = ['books_count', 'minutes', 'genre', 'author', 'custom'];
+// Friendly goal types. `value` is what's stored in the DB (unchanged); `label`
+// is what the researcher sees; `field` drives which graphical input we show.
+const GOAL_TYPES: { value: string; label: string; field: 'count' | 'minutes' | 'genre' | 'author' | 'none' }[] = [
+  { value: 'books_count', label: 'Read a number of books', field: 'count' },
+  { value: 'minutes', label: 'Read for a number of minutes', field: 'minutes' },
+  { value: 'genre', label: 'Read a specific genre', field: 'genre' },
+  { value: 'author', label: 'Read books by an author', field: 'author' },
+  { value: 'custom', label: 'Custom goal (described in text)', field: 'none' },
+];
+
+const SHORT_LABEL: Record<string, string> = {
+  books_count: 'Books',
+  minutes: 'Minutes',
+  genre: 'Genre',
+  author: 'Author',
+  custom: 'Custom',
+};
+
+interface FormState {
+  title: string;
+  description: string;
+  type: string;
+  randomPool: boolean;
+  count: string;
+  minutes: string;
+  genre: string;
+  author: string;
+}
+
+const EMPTY_FORM: FormState = {
+  title: '',
+  description: '',
+  type: 'books_count',
+  randomPool: false,
+  count: '',
+  minutes: '',
+  genre: '',
+  author: '',
+};
+
+// Build the stored criteria object from the graphical fields, with validation.
+function buildCriteria(form: FormState): { criteria: Record<string, unknown> } | { error: string } {
+  const fieldFor = GOAL_TYPES.find(t => t.value === form.type)?.field ?? 'none';
+  switch (fieldFor) {
+    case 'count': {
+      const n = parseInt(form.count, 10);
+      if (!n || n < 1) return { error: 'Enter how many books to read (1 or more).' };
+      return { criteria: { count: n } };
+    }
+    case 'minutes': {
+      const n = parseInt(form.minutes, 10);
+      if (!n || n < 1) return { error: 'Enter how many minutes to read (1 or more).' };
+      return { criteria: { minutes: n } };
+    }
+    case 'genre':
+      if (!form.genre.trim()) return { error: 'Enter a genre.' };
+      return { criteria: { genre: form.genre.trim() } };
+    case 'author':
+      if (!form.author.trim()) return { error: 'Enter an author name.' };
+      return { criteria: { author: form.author.trim() } };
+    default:
+      return { criteria: {} };
+  }
+}
+
+// Human-readable summary of a saved goal's target, shown on the card.
+function targetSummary(t: GoalTemplate): string | null {
+  const c = (t.criteria ?? {}) as Record<string, unknown>;
+  if (typeof c.count === 'number') return `${c.count} book${c.count === 1 ? '' : 's'}`;
+  if (typeof c.minutes === 'number') return `${c.minutes} minutes`;
+  if (typeof c.genre === 'string' && c.genre) return `Genre: ${c.genre}`;
+  if (typeof c.author === 'string' && c.author) return `Author: ${c.author}`;
+  return null;
+}
 
 export default function GoalsPage() {
   const [templates, setTemplates] = useState<GoalTemplate[]>([]);
@@ -18,46 +91,50 @@ export default function GoalsPage() {
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<string | null>(null);
   const [deadline, setDeadline] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    type: 'books_count',
-    criteria: '{}',
-    randomPool: false,
-  });
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const reload = () => getAdminGoals().then(setTemplates).finally(() => setLoading(false));
   useEffect(() => { reload(); }, []);
 
   const openNew = () => {
     setEditing(null);
-    setForm({ title: '', description: '', type: 'books_count', criteria: '{}', randomPool: false });
+    setForm(EMPTY_FORM);
+    setFormError('');
     setShowForm(true);
   };
 
   const openEdit = (t: GoalTemplate) => {
+    const c = (t.criteria ?? {}) as Record<string, unknown>;
     setEditing(t);
     setForm({
       title: t.title,
       description: t.description,
       type: t.type,
-      criteria: JSON.stringify(t.criteria, null, 2),
       randomPool: t.randomPool,
+      count: typeof c.count === 'number' ? String(c.count) : '',
+      minutes: typeof c.minutes === 'number' ? String(c.minutes) : '',
+      genre: typeof c.genre === 'string' ? c.genre : '',
+      author: typeof c.author === 'string' ? c.author : '',
     });
+    setFormError('');
     setShowForm(true);
   };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    let criteria: Record<string, unknown>;
-    try {
-      criteria = JSON.parse(form.criteria);
-    } catch {
-      alert('Criteria must be valid JSON.');
-      return;
-    }
-    const payload = { ...form, criteria };
+    setFormError('');
+    const result = buildCriteria(form);
+    if ('error' in result) { setFormError(result.error); return; }
+
+    const payload = {
+      title: form.title,
+      description: form.description,
+      type: form.type,
+      randomPool: form.randomPool,
+      criteria: result.criteria,
+    };
     if (editing) {
       await updateGoal(editing.id, payload);
     } else {
@@ -85,6 +162,8 @@ export default function GoalsPage() {
       setAssigning(false);
     }
   };
+
+  const activeField = GOAL_TYPES.find(t => t.value === form.type)?.field ?? 'none';
 
   if (loading) return <p>Loading...</p>;
 
@@ -117,23 +196,27 @@ export default function GoalsPage() {
         <p style={{ color: '#999', marginTop: 24 }}>No goal templates yet. Create one above.</p>
       ) : (
         <div style={s.grid}>
-          {templates.map(t => (
-            <div key={t.id} style={s.card}>
-              <div style={s.cardTop}>
-                <span style={s.tag}>{t.type}</span>
-                {t.randomPool && <span style={s.poolTag}>Random Pool</span>}
+          {templates.map(t => {
+            const target = targetSummary(t);
+            return (
+              <div key={t.id} style={s.card}>
+                <div style={s.cardTop}>
+                  <span style={s.tag}>{SHORT_LABEL[t.type] ?? t.type}</span>
+                  {t.randomPool && <span style={s.poolTag}>Random Pool</span>}
+                </div>
+                <div style={s.cardTitle}>{t.title}</div>
+                <div style={s.cardDesc}>{t.description}</div>
+                {target && <div style={s.cardTarget}>🎯 {target}</div>}
+                <div style={s.cardMeta}>
+                  {t._count?.userGoals ?? 0} assigned
+                </div>
+                <div style={s.cardActions}>
+                  <button style={s.editBtn} onClick={() => openEdit(t)}>Edit</button>
+                  <button style={s.deleteBtn} onClick={() => handleDelete(t.id, t.title)}>Delete</button>
+                </div>
               </div>
-              <div style={s.cardTitle}>{t.title}</div>
-              <div style={s.cardDesc}>{t.description}</div>
-              <div style={s.cardMeta}>
-                {t._count?.userGoals ?? 0} assigned
-              </div>
-              <div style={s.cardActions}>
-                <button style={s.editBtn} onClick={() => openEdit(t)}>Edit</button>
-                <button style={s.deleteBtn} onClick={() => handleDelete(t.id, t.title)}>Delete</button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -141,24 +224,53 @@ export default function GoalsPage() {
         <div style={s.overlay}>
           <form style={s.modal} onSubmit={submit}>
             <h2 style={s.modalTitle}>{editing ? 'Edit Goal' : 'New Goal Template'}</h2>
+
             <label style={s.label}>Title</label>
-            <input style={s.input} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
+            <input style={s.input} value={form.title} placeholder="e.g. Read 5 books this month" onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
+
             <label style={s.label}>Description</label>
-            <textarea style={{ ...s.input, height: 72 }} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required />
-            <label style={s.label}>Type</label>
+            <textarea style={{ ...s.input, height: 72 }} value={form.description} placeholder="What should the participant do?" onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required />
+
+            <label style={s.label}>Goal type</label>
             <select style={s.input} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-              {GOAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {GOAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
-            <label style={s.label}>Criteria (JSON)</label>
-            <textarea
-              style={{ ...s.input, height: 80, fontFamily: 'monospace', fontSize: 12 }}
-              value={form.criteria}
-              onChange={e => setForm(f => ({ ...f, criteria: e.target.value }))}
-            />
+
+            {activeField === 'count' && (
+              <>
+                <label style={s.label}>Number of books</label>
+                <input style={s.input} type="number" min={1} value={form.count} placeholder="e.g. 5" onChange={e => setForm(f => ({ ...f, count: e.target.value }))} />
+              </>
+            )}
+            {activeField === 'minutes' && (
+              <>
+                <label style={s.label}>Number of minutes</label>
+                <input style={s.input} type="number" min={1} value={form.minutes} placeholder="e.g. 300" onChange={e => setForm(f => ({ ...f, minutes: e.target.value }))} />
+              </>
+            )}
+            {activeField === 'genre' && (
+              <>
+                <label style={s.label}>Genre</label>
+                <input style={s.input} value={form.genre} placeholder="e.g. Mystery" onChange={e => setForm(f => ({ ...f, genre: e.target.value }))} />
+              </>
+            )}
+            {activeField === 'author' && (
+              <>
+                <label style={s.label}>Author</label>
+                <input style={s.input} value={form.author} placeholder="e.g. Toni Morrison" onChange={e => setForm(f => ({ ...f, author: e.target.value }))} />
+              </>
+            )}
+            {activeField === 'none' && (
+              <p style={s.customHint}>This goal has no numeric target — the title and description tell the participant what to do.</p>
+            )}
+
             <label style={s.checkRow}>
               <input type="checkbox" checked={form.randomPool} onChange={e => setForm(f => ({ ...f, randomPool: e.target.checked }))} />
               <span>Include in random assignment pool</span>
             </label>
+
+            {formError && <p style={s.formError}>{formError}</p>}
+
             <div style={s.modalBtns}>
               <button type="submit" style={s.primaryBtn}>{editing ? 'Save' : 'Create'}</button>
               <button type="button" style={s.cancelBtn} onClick={() => setShowForm(false)}>Cancel</button>
@@ -185,16 +297,19 @@ const s: Record<string, React.CSSProperties> = {
   poolTag: { background: '#f0fdf4', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
   cardTitle: { fontWeight: 700, fontSize: 15, marginBottom: 4 },
   cardDesc: { fontSize: 13, color: '#555', marginBottom: 8 },
+  cardTarget: { fontSize: 13, color: '#1a1a2e', fontWeight: 600, marginBottom: 8 },
   cardMeta: { fontSize: 12, color: '#999', marginBottom: 12 },
   cardActions: { display: 'flex', gap: 8 },
   editBtn: { background: '#f0f0f7', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13 },
   deleteBtn: { background: '#fff1f2', color: '#ef4444', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
-  modal: { background: '#fff', borderRadius: 16, padding: 32, width: 480, display: 'flex', flexDirection: 'column', gap: 6 },
+  modal: { background: '#fff', borderRadius: 16, padding: 32, width: 480, maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 },
   modalTitle: { fontSize: 20, fontWeight: 700, marginBottom: 8 },
   label: { fontSize: 13, fontWeight: 600, color: '#555', marginTop: 6 },
-  input: { border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px', fontSize: 14, width: '100%' },
-  checkRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 14, cursor: 'pointer' },
-  modalBtns: { display: 'flex', gap: 10, marginTop: 12 },
+  input: { border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px', fontSize: 14, width: '100%', boxSizing: 'border-box' },
+  customHint: { fontSize: 13, color: '#888', background: '#f7f7fb', borderRadius: 8, padding: 10, marginTop: 6 },
+  checkRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 14, cursor: 'pointer' },
+  formError: { color: '#ef4444', fontSize: 13, marginTop: 10 },
+  modalBtns: { display: 'flex', gap: 10, marginTop: 16 },
   cancelBtn: { background: '#f5f5f5', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14 },
 };
