@@ -23,7 +23,7 @@
       "package": "com.booktracker.app"
     },
     "extra": {
-      "apiUrl": "https://book-tracker-five-nu.vercel.app"
+      "apiUrl": "https://book-tracker-api.vercel.app"
     }
   }
 }
