@@ -195,6 +195,60 @@ Then log in via the web admin panel at `http://localhost:5173`.
 3. **Web admin** — deploy `/web` to Vercel/Netlify as a static site; set `VITE_API_URL` to the Render URL at build time
 4. **App** — update `app/app.json` `extra.apiUrl` to Render URL; build with EAS or run via Expo Go for testing
 
+> Note: the live backend is on **Vercel** (`https://book-tracker-api.vercel.app`),
+> not Render, and the admin panel is at `https://book-tracker-admin.vercel.app`.
+> `app/app.json` `extra.apiUrl` already points at the Vercel backend.
+
+---
+
+## Getting the App to Participants
+
+The app talks to the **cloud** backend (`extra.apiUrl` = the Vercel URL), so a
+participant's phone only needs internet — it does NOT need to be on the same
+Wi-Fi as the developer.
+
+### Pilot (free, no build) — Expo Go + tunnel
+
+Run this on any computer with the repo. Participants can be anywhere.
+
+```bash
+cd app
+npm install                 # first time only
+npx expo start --tunnel     # first run asks to install @expo/ngrok — say yes
+```
+
+This prints a **QR code** and an `exp://…exp.direct` **link**. That QR/link is
+exactly the "study's BookTracker link" referenced in the admin panel's invite
+instructions — share it in recruitment.
+
+Tell each participant:
+- **iPhone:** install **Expo Go** from the App Store → open the **Camera** app →
+  point at the QR → tap the banner to open it in Expo Go.
+- **Android:** install **Expo Go** from Google Play → open Expo Go → **Scan QR
+  code** → scan it.
+
+Then BookTracker loads and asks for their invite code.
+
+**Pilot caveats:**
+- Works only while this `expo start` process keeps running on the computer.
+- The tunnel URL changes each time you restart, so regenerate/reshare the QR per
+  session. Fine for validating with a handful of people; not for a 24/7 study.
+
+### Scaling up (always-on) — EAS Build
+
+`app/eas.json` is already configured. When you outgrow the pilot:
+- **Android (free):** `cd app && eas build -p android --profile preview` →
+  produces a permanent, installable **APK** with a shareable link/QR. Participants
+  tap to install (they may need to allow "install from unknown sources").
+- **iOS (paid):** requires an **Apple Developer account ($99/yr)** + **TestFlight**
+  (participants install the TestFlight app, then accept an invite). There is no
+  free way to put an iOS app on arbitrary phones.
+- Both need a free **Expo account** + `npm i -g eas-cli` then `eas login` and
+  `eas init` (the latter writes `extra.eas.projectId` into `app.json`).
+
+> Heads-up: modern Expo (SDK 50+) removed the old `expo publish` flow, so there is
+> no "permanent Expo Go link anyone can open." Permanent distribution = EAS Build.
+
 ---
 
 ## Current Status (as of May 2026)
