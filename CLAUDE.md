@@ -1,11 +1,16 @@
 # BookTracker — Claude Context
 
 ## Concept
-A research reading-tracker app for a marketing PhD study.
-Participants log books they read, track streaks and reading time, and receive
-goals (self-set or randomly assigned by the researcher). The researcher
-("provisioner") has a separate web admin panel to design goals, assign them,
-and view aggregated data and feedback.
+A research reading-tracker app for a marketing PhD study. Participants log books
+they read, track streaks and reading time, and receive goals (self-set or
+randomly assigned by the researcher). The researcher ("provisioner") has a
+separate web admin panel to invite participants, design and assign goals, manage
+participants, and export aggregated data and feedback.
+
+Participation is **invite-only**: the researcher generates single-use invite
+codes; a participant must enter a valid code on first launch to use the app.
+Participants are otherwise anonymous (a device UUID + a name/ID they enter, or a
+label baked into their invite code) — no passwords, minimal PII.
 
 ---
 
@@ -15,14 +20,28 @@ and view aggregated data and feedback.
 |---|---|
 | Mobile app | React Native + Expo SDK 51 |
 | Language | TypeScript throughout |
-| Backend | Node.js + Express |
+| Backend | Node.js + Express (serverless on Vercel via `@vercel/node`) |
 | ORM | Prisma v5 |
-| Database | PostgreSQL (Neon.tech free tier) |
+| Database | PostgreSQL (Neon.tech free tier, pooled connection) |
 | Book data | Google Books API (no key needed for basic search) |
-| Auth | JWT (provisioner only; users are anonymous device UUIDs) |
-| Hosting (backend) | Render.com (free web service) |
-| Admin panel | Vite + React (deploy to Vercel, Netlify, or Render static) |
-| Secrets | `.env` file (never committed — gitignored) |
+| Admin auth | JWT (provisioner only; 7-day expiry) |
+| Participant gating | Single-use invite codes (no passwords) |
+| Hosting | Vercel — backend + admin panel are separate Vercel projects |
+| Secrets | backend `.env` (gitignored) + Vercel dashboard env vars |
+
+---
+
+## Live URLs
+
+| Surface | URL |
+|---|---|
+| Backend API | https://book-tracker-api.vercel.app (alias of `book-tracker-five-nu`) |
+| Web admin panel | https://book-tracker-admin.vercel.app (alias of `book-tracker-pf8s`) |
+| GitHub | https://github.com/snowwarrior1-alt/BookTracker (branch `main`) |
+
+A provisioner account exists (`admin@booktracker.com`). The password is the
+default seeded at setup — **change it** via the admin panel's "Change password"
+button. Never commit the password to this repo.
 
 ---
 
@@ -32,51 +51,58 @@ and view aggregated data and feedback.
 BookTracker/
 ├── backend/
 │   ├── src/
-│   │   ├── index.ts                Express app setup, route mounting
+│   │   ├── index.ts                Express app; route mounting; 404 + global error handler; exports app (serverless) and only listens when !VERCEL
 │   │   ├── lib/
 │   │   │   ├── prisma.ts           Prisma client singleton
 │   │   │   ├── streak.ts           Streak update logic (called after every log)
-│   │   │   └── auth.ts             JWT sign/verify, requireAuth middleware
+│   │   │   ├── auth.ts             JWT sign/verify, requireAuth middleware
+│   │   │   ├── asyncHandler.ts     Wraps async routes so rejections hit the global error handler
+│   │   │   ├── inviteCode.ts       Human-friendly invite-code generator (no ambiguous chars)
+│   │   │   └── goalProgress.ts     Shared "criteria met?" computation for a goal + a user's logs
 │   │   └── routes/
-│   │       ├── users.ts            POST /users — upsert device user
+│   │       ├── users.ts            POST /users — upsert device user; returns hasAccess
+│   │       ├── invites.ts          POST /invites/redeem — participant redeems an invite code
 │   │       ├── books.ts            GET /books/search — proxy Google Books API
-│   │       ├── logs.ts             POST /logs, GET /logs/:userId
+│   │       ├── logs.ts             POST /logs (stores categories), GET /logs/:userId
 │   │       ├── goals.ts            GET /goals/templates, POST /goals/self, PATCH /goals/:id/complete|abandon, GET /goals/:userId
 │   │       ├── feedback.ts         POST /feedback
 │   │       ├── stats.ts            GET /stats/:userId — per-user aggregated stats
-│   │       └── admin.ts            POST /admin/login, /register; protected: /users, /goals (CRUD), /assign, /data
+│   │       └── admin.ts            Auth + provisioner-only endpoints (see API table)
 │   ├── prisma/
-│   │   └── schema.prisma           Models: User, ReadingLog, Streak, GoalTemplate, UserGoal, Feedback, Provisioner
-│   ├── package.json
-│   └── tsconfig.json
+│   │   ├── schema.prisma           Models: User, ReadingLog, Streak, GoalTemplate, UserGoal, Feedback, Provisioner, InviteCode
+│   │   └── migrations/             init, invite_codes, participant_status, reading_log_categories
+│   ├── vercel.json                 Routes all paths to src/index.ts via @vercel/node
+│   └── package.json                vercel-build = "prisma generate && prisma migrate deploy"
 ├── app/                            React Native / Expo app
-│   ├── App.tsx                     Root: loads userId, upserts user, renders tab navigator
-│   ├── app.json                    Expo config (extra.apiUrl)
-│   ├── package.json
+│   ├── App.tsx                     Root gate: invite code → name → 4-tab navigator
+│   ├── app.json                    Expo config (extra.apiUrl = Vercel backend)
+│   ├── eas.json                    EAS Build profiles (development/preview/production)
 │   └── src/
 │       ├── api/client.ts           Axios instance + all typed API functions
 │       ├── lib/userId.ts           Persistent device UUID via expo-secure-store
 │       └── screens/
-│           ├── HomeScreen.tsx      Stat cards + recent reading log list
-│           ├── SearchScreen.tsx    Google Books search + log-a-book flow
-│           ├── GoalsScreen.tsx     Active/past goals, add/complete/abandon, feedback modal
-│           └── ProfileScreen.tsx   Full stats: totals, streaks, top books, books/month chart
+│           ├── InviteCodeScreen.tsx  First-launch invite-code gate
+│           ├── NameEntryScreen.tsx   Name/participant-ID entry (skipped if code carried a label)
+│           ├── HomeScreen.tsx        Stat cards + recent reading log list
+│           ├── SearchScreen.tsx      Google Books search + log-a-book (sends categories)
+│           ├── GoalsScreen.tsx       Active/past goals, add/complete/abandon, feedback modal
+│           └── ProfileScreen.tsx     Editable name + full stats (totals, streaks, top books, chart)
 ├── web/                            Provisioner admin panel (Vite + React)
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── package.json
+│   ├── .env.production             VITE_API_URL (committed; the prod API URL is not secret)
+│   ├── vercel.json                 SPA rewrite — all paths → index.html
 │   └── src/
-│       ├── main.tsx
-│       ├── App.tsx                 Auth gate: LoginPage or nav + routes
-│       ├── api/client.ts           Axios instance with JWT token management
+│       ├── App.tsx                 Auth gate + global error banner + session-expiry handling
+│       ├── api/client.ts           Axios + JWT mgmt + response interceptor (errors / 401)
+│       ├── lib/csv.ts              Generic CSV builder + browser download
 │       └── pages/
-│           ├── Nav.tsx             Top navigation bar
-│           ├── LoginPage.tsx       Email/password login
-│           ├── DashboardPage.tsx   Summary stats + top books + goal completion rates
-│           ├── GoalsPage.tsx       Create/edit/delete goal templates; random assignment
-│           ├── UsersPage.tsx       User table with checkboxes; targeted assignment
-│           └── DataPage.tsx        Tabbed: feedback viewer | goal outcomes
-├── render.yaml                     Render deployment config
+│           ├── Nav.tsx               Top nav (Dashboard, Goals, Invites, Participants, Data) + Change password
+│           ├── LoginPage.tsx         Provisioner login (+ "session expired" notice)
+│           ├── DashboardPage.tsx     Summary stats + top books + goal completion rates
+│           ├── GoalsPage.tsx         Graphical goal builder (no JSON) + random assignment
+│           ├── InvitesPage.tsx       Invite instructions + generate/copy/revoke codes + export
+│           ├── UsersPage.tsx         "Participants": search, code/label/status, detail modal, mgmt
+│           └── DataPage.tsx          Tabs: Goal Progress (auto-check) | Feedback | Goal Outcomes
+├── render.yaml                     Legacy Render config — UNUSED (we deploy on Vercel)
 └── .gitignore
 ```
 
@@ -85,14 +111,18 @@ BookTracker/
 ## Database Schema
 
 ```prisma
-User           id (device UUID), displayName, createdAt
-ReadingLog     id, userId, googleBooksId, title, author, coverUrl, minutesRead, loggedAt
+User           id (device UUID), displayName, status (active|withdrawn), createdAt
+ReadingLog     id, userId, googleBooksId, title, author, coverUrl, categories[], minutesRead, loggedAt
 Streak         userId (PK), currentStreak, longestStreak, lastReadDate
 GoalTemplate   id, title, description, type, criteria (JSON), randomPool, createdAt
 UserGoal       id, userId, templateId, status (active|completed|abandoned), assignedBy (self|system), assignedAt, completedAt, deadline
 Feedback       id, userId, userGoalId, rating (int 1-5), text, createdAt
 Provisioner    id, email, passwordHash, createdAt
+InviteCode     id, code (unique), label (optional participant ID), usedByUserId (unique), usedAt, createdAt
 ```
+
+`User.inviteCode` is a 1:1 back-relation to the `InviteCode` a participant
+redeemed — this is how behavioral data is tied back to a recruited person.
 
 ---
 
@@ -101,9 +131,10 @@ Provisioner    id, email, passwordHash, createdAt
 ### Public (no auth)
 | Method | Path | Description |
 |---|---|---|
-| POST | `/users` | Upsert device user |
+| POST | `/users` | Upsert device user; returns `{…, hasAccess}` |
+| POST | `/invites/redeem` | `{userId, code}` → redeem an invite code (gates the app); adopts code label as name |
 | GET | `/books/search?q=` | Search Google Books |
-| POST | `/logs` | Log a reading session (triggers streak update) |
+| POST | `/logs` | Log a reading session (stores `categories`; triggers streak update) |
 | GET | `/logs/:userId` | Get all logs for user |
 | GET | `/goals/templates` | List all goal templates |
 | POST | `/goals/self` | User picks a goal |
@@ -114,39 +145,70 @@ Provisioner    id, email, passwordHash, createdAt
 | GET | `/stats/:userId` | Aggregated stats for user |
 | GET | `/health` | `{ok: true}` |
 
-### Admin (JWT required)
+### Admin (JWT required, except login/register)
 | Method | Path | Description |
 |---|---|---|
-| POST | `/admin/login` | Get JWT |
-| POST | `/admin/register` | Create provisioner account (requires SETUP_KEY) |
-| GET | `/admin/users` | All users with counts |
-| GET | `/admin/goals` | All goal templates with assignment counts |
-| POST | `/admin/goals` | Create goal template |
-| PATCH | `/admin/goals/:id` | Update template |
-| DELETE | `/admin/goals/:id` | Delete template |
-| POST | `/admin/assign` | Randomly assign pool goals to all/selected users |
-| GET | `/admin/data` | Aggregate research data + feedback |
+| POST | `/admin/login` | Get JWT (7-day) |
+| POST | `/admin/register` | Create provisioner (requires SETUP_KEY) |
+| POST | `/admin/change-password` | Change own password (verifies current) |
+| GET | `/admin/users` | All participants w/ code, label, status, counts, streak |
+| GET | `/admin/users/:id` | Full participant detail: code, logs, goals+progress, feedback |
+| PATCH | `/admin/users/:id` | Edit displayName and/or status (active|withdrawn) |
+| GET | `/admin/goals` | Goal templates w/ assignment counts |
+| POST/PATCH/DELETE | `/admin/goals[/:id]` | CRUD goal templates |
+| POST | `/admin/assign` | Randomly assign pool goals (to all *active*, or selected) |
+| GET | `/admin/invites` | List invite codes + redeemer |
+| POST | `/admin/invites` | Generate codes — `{labels:[…]}` or `{count:N}` |
+| DELETE | `/admin/invites/:id` | Revoke an unused code |
+| GET | `/admin/logs` | All reading logs joined with participant name/code (for export) |
+| GET | `/admin/goal-progress` | Per-assignment auto-checked progress + "criteria met" flag |
+| GET | `/admin/data` | Aggregate research data + feedback (w/ participant code) |
+
+Unknown routes return JSON `{error:"Not found"}` (404); unhandled errors return a
+generic 500 (or 400 for malformed JSON) via the global error middleware — no
+stack-trace leaks.
+
+---
+
+## Goals & Auto-checking
+
+The admin builds goals with a **graphical form** (no JSON). `type` + `criteria`:
+- `books_count` → `{count:N}` — distinct books logged
+- `minutes` → `{minutes:N}` — total minutes logged
+- `author` → `{author:"…"}` — a book whose author matches
+- `genre` → `{genre:"…"}` — a book whose Google Books categories match
+- `custom` → `{}` — free-form, manual only
+
+Participants mark goals complete themselves (this self-report + feedback is a
+research signal). The admin **Data → Goal Progress** tab also auto-checks each
+assignment against reading logged *after* it was assigned, and flags "criteria
+met" without changing the participant's status (so self-reported vs behavioral
+completion stay distinguishable). Auto-checkable: books_count, minutes, author,
+genre. `custom` is manual-only. Genre only works for books logged *after* the
+categories feature shipped (older logs have no categories).
 
 ---
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+Never commit values. Names only:
+
+### Backend — `backend/.env` locally; Vercel dashboard in prod
 ```
-DATABASE_URL=postgresql://...     # Neon.tech connection string
-JWT_SECRET=...                    # Long random string for JWT signing
-SETUP_KEY=...                     # One-time secret to create provisioner account
-GOOGLE_BOOKS_API_KEY=...          # Optional — works without it, just rate-limited
-PORT=3000
+DATABASE_URL        # Neon pooled connection string
+JWT_SECRET          # long random string for JWT signing
+SETUP_KEY           # one-time secret to create the provisioner account
+GOOGLE_BOOKS_API_KEY  # optional — works without, just rate-limited
+PORT                # local only; ignored on Vercel
 ```
 
-### Web (`web/.env`)
-```
-VITE_API_URL=http://localhost:3000   # Change to Render URL after deploy
-```
+### Web admin
+`VITE_API_URL` is committed in `web/.env.production` (the prod API URL is public,
+not a secret). There is **no** `VITE_API_URL` in the Vercel dashboard — it was
+removed after a hand-typed-typo incident broke the admin; keep it in the file.
 
-### App (`app/app.json` → `extra.apiUrl`)
-Change to the live Render URL after deploying.
+### App — `app/app.json` → `extra.apiUrl`
+Already points at `https://book-tracker-api.vercel.app`.
 
 ---
 
@@ -155,49 +217,50 @@ Change to the live Render URL after deploying.
 ```bash
 # Backend
 cd backend
-npm install --ignore-scripts
-# create backend/.env with vars above
-npm run dev
+npm install
+# create backend/.env (see vars above)
+npx prisma generate
+npm run dev                 # http://localhost:3000
 
 # Web admin (separate terminal)
 cd web
 npm install
-# create web/.env with VITE_API_URL=http://localhost:3000
-npm run dev
-# Opens at http://localhost:5173
+# .env.production already has the prod URL; for local API use a .env.local with VITE_API_URL=http://localhost:3000
+npm run dev                 # http://localhost:5173
 
-# App (separate terminal)
+# App (separate terminal) — talks to the cloud backend by default
 cd app
-npm install --ignore-scripts
-# Update app.json extra.apiUrl to http://<local-ip>:3000
-npm start
-# Scan QR with Expo Go
+npm install
+npm start                   # scan QR with Expo Go
 ```
 
----
-
-## First-time Provisioner Setup
-
-After the backend is running:
+First-time provisioner account:
 ```bash
-curl -X POST http://localhost:3000/admin/register \
+curl -X POST https://book-tracker-api.vercel.app/admin/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com","password":"...","setupKey":"<SETUP_KEY from .env>"}'
+  -d '{"email":"you@example.com","password":"…","setupKey":"<SETUP_KEY>"}'
 ```
-Then log in via the web admin panel at `http://localhost:5173`.
 
 ---
 
-## Deployment
+## Deployment (Vercel)
 
-1. **Neon.tech** — create free PostgreSQL project, copy connection string
-2. **Render.com** — new web service → this repo → set env vars (`DATABASE_URL`, `JWT_SECRET`, `SETUP_KEY`, optionally `GOOGLE_BOOKS_API_KEY`)
-3. **Web admin** — deploy `/web` to Vercel/Netlify as a static site; set `VITE_API_URL` to the Render URL at build time
-4. **App** — update `app/app.json` `extra.apiUrl` to Render URL; build with EAS or run via Expo Go for testing
+Two Vercel projects watch this repo; every push to `main` deploys both.
 
-> Note: the live backend is on **Vercel** (`https://book-tracker-api.vercel.app`),
-> not Render, and the admin panel is at `https://book-tracker-admin.vercel.app`.
-> `app/app.json` `extra.apiUrl` already points at the Vercel backend.
+1. **Backend** project `book-tracker` — root dir `backend`. `vercel-build` runs
+   `prisma generate && prisma migrate deploy`. Domain alias `book-tracker-api`.
+   Env vars set in the Vercel dashboard.
+2. **Admin** project `book-tracker-pf8s` — root dir `web`. Vite build; `web/vercel.json`
+   gives the SPA an index.html rewrite (deep links/refresh work). Domain alias
+   `book-tracker-admin`. Reads `VITE_API_URL` from `web/.env.production`.
+3. **Database** — Neon. Migrations are applied locally with `prisma migrate dev`
+   (against Neon) before pushing; the prod `migrate deploy` is then a no-op safety net.
+
+> **Known flake:** `prisma migrate deploy` occasionally fails on Neon's pooled
+> endpoint with `P1002` (advisory-lock timeout). It's transient — just redeploy
+> the failed build. (Hardening option: point migrations at Neon's direct,
+> non-pooled connection via Prisma `directUrl`, or drop `migrate deploy` from the
+> build since migrations are already applied locally.)
 
 ---
 
@@ -251,29 +314,41 @@ Then BookTracker loads and asks for their invite code.
 
 ---
 
-## Current Status (as of May 2026)
+## Current Status (as of 2026-05-28)
 
-**Full scaffold written. TypeScript should compile clean. Not yet run end-to-end.**
+**Backend + admin panel are deployed, live, and verified. Mobile app code is
+complete and typechecks clean but has NOT yet been run in Expo Go end-to-end —
+the pilot run will be its first real launch.**
 
-### Done
-- Complete backend: all routes, streak logic, JWT auth, random goal assignment
-- Mobile app: 4-screen tab navigator (Home, Search, Goals, Profile)
-- Web admin: Login, Dashboard, Goals manager, Users table with targeted assignment, Data/feedback viewer
-- Prisma schema + render.yaml
+### Done & verified live
+- Backend on Vercel: all routes, JWT auth, global error handling, invite redeem,
+  participant management, goal auto-check (books/minutes/author/genre). Verified
+  via live end-to-end tests.
+- Admin panel: invites (+ instructions), graphical goal builder, Participants
+  page (search, detail, rename, withdraw), Goal Progress auto-check, CSV exports
+  with invite code/label threaded through, change-password, error banner +
+  session-expiry redirect. Verified in-browser.
+- Database on Neon with 4 migrations applied.
 
-### Next session
-1. `cd backend && npm install --ignore-scripts` — install deps, run `npx prisma generate`
-2. Create `backend/.env` with a local Neon/Postgres URL
-3. `npm run dev` — verify server starts
-4. Create provisioner account via `/admin/register`
-5. `cd web && npm install && npm run dev` — test admin panel in browser
-6. `cd app && npm install --ignore-scripts && npm start` — test on device
+### Next
+1. **Pilot run** — `cd app && npm install && npx expo start --tunnel`; open in
+   Expo Go; walk the full flow (redeem code → log a book → goals → profile).
+   Expect to fix small first-run issues (assets, layout).
+2. Generate invite codes in the admin, hand the QR + codes to a few testers.
+3. When ready to scale, set up EAS Build (Android free APK / iOS TestFlight).
+
+### Optional follow-ups noted
+- Harden the `migrate deploy` advisory-lock flake (directUrl, or drop it).
+- Shared web components / replace remaining native `confirm()` dialogs.
 
 ---
 
 ## Notes
-- Use `npm.cmd` (not `npm`) in PowerShell to avoid `.ps1` execution policy errors
-- Use `npm install --ignore-scripts` in the app to avoid native build failures in Expo
-- The `prisma` package must be in `dependencies` (not devDependencies) — `start:prod` calls it
-- Google Books API works without a key but is rate-limited; add a key in production
-- Goal `criteria` is a freeform JSON field — examples: `{"count":5}` (books_count), `{"minutes":300}` (minutes), `{"genre":"Science Fiction"}` (genre)
+- Use `npm.cmd` (not `npm`) in PowerShell to avoid `.ps1` execution policy errors.
+- The `prisma` package must be in `dependencies` (not devDependencies) — the
+  build calls it at deploy time.
+- Apply schema changes with `prisma migrate dev` locally (against Neon) before
+  pushing, so prod `migrate deploy` is just a confirmation.
+- Google Books API works without a key but is rate-limited; add a key in prod.
+- Participants are invite-gated and anonymous; keep the master list of
+  code → real person OUTSIDE the app.
