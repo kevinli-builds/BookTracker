@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { AdminData, getAdminData } from '../api/client';
+import { AdminData, GoalProgress, getAdminData, getGoalProgress } from '../api/client';
 import { downloadCsv } from '../lib/csv';
 
 export default function DataPage() {
   const [data, setData] = useState<AdminData | null>(null);
+  const [progress, setProgress] = useState<GoalProgress[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'feedback' | 'goals'>('feedback');
+  const [tab, setTab] = useState<'feedback' | 'goals' | 'progress'>('progress');
 
   useEffect(() => {
-    getAdminData().then(setData).finally(() => setLoading(false));
+    Promise.all([
+      getAdminData().then(setData),
+      getGoalProgress().then(setProgress).catch(() => setProgress([])),
+    ]).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <p>Loading...</p>;
@@ -41,21 +45,92 @@ export default function DataPage() {
     );
   };
 
+  const exportProgress = () => {
+    downloadCsv(
+      `booktracker-goal-progress-${today}.csv`,
+      (progress ?? []).map(p => ({
+        participant: p.participant ?? '',
+        user_id: p.userId,
+        goal: p.goalTitle,
+        type: p.type,
+        progress: p.progress,
+        criteria_met: p.autoCheckable ? (p.met ? 'yes' : 'no') : 'n/a',
+        marked_status: p.status,
+        assigned_at: new Date(p.assignedAt).toISOString(),
+      }))
+    );
+  };
+
+  const readyToComplete = (progress ?? []).filter(p => p.status === 'active' && p.met).length;
+
   return (
     <div>
       <h1 style={s.h1}>Research Data</h1>
 
       <div style={s.tabs}>
-        {(['feedback', 'goals'] as const).map(t => (
+        {(['progress', 'feedback', 'goals'] as const).map(t => (
           <button
             key={t}
             style={{ ...s.tab, ...(tab === t ? s.tabActive : {}) }}
             onClick={() => setTab(t)}
           >
-            {t === 'feedback' ? 'User Feedback' : 'Goal Outcomes'}
+            {t === 'feedback' ? 'User Feedback' : t === 'goals' ? 'Goal Outcomes' : 'Goal Progress'}
+            {t === 'progress' && readyToComplete > 0 && (
+              <span style={s.tabBadge}>{readyToComplete}</span>
+            )}
           </button>
         ))}
       </div>
+
+      {tab === 'progress' && (
+        <div>
+          <div style={s.tabHeader}>
+            <p style={s.count}>
+              Auto-checked against reading logged since each goal was assigned.
+              {readyToComplete > 0 && ` ${readyToComplete} met but not yet marked complete.`}
+            </p>
+            <button style={s.exportBtn} onClick={exportProgress} disabled={!progress || progress.length === 0}>Export CSV</button>
+          </div>
+          {!progress || progress.length === 0 ? (
+            <p style={s.empty}>No active or completed goals yet.</p>
+          ) : (
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Participant</th>
+                  <th style={s.th}>Goal</th>
+                  <th style={s.th}>Progress</th>
+                  <th style={s.th}>Criteria met?</th>
+                  <th style={s.th}>Marked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {progress.map(p => (
+                  <tr key={p.userGoalId} style={p.status === 'active' && p.met ? s.trHighlight : s.tr}>
+                    <td style={s.td}>{p.participant ?? <em style={{ color: '#aaa' }}>unnamed</em>}</td>
+                    <td style={s.td}>{p.goalTitle}</td>
+                    <td style={s.td}>{p.progress}</td>
+                    <td style={s.td}>
+                      {!p.autoCheckable
+                        ? <span style={{ color: '#aaa' }}>n/a</span>
+                        : p.met
+                          ? <span style={s.metYes}>✓ Met</span>
+                          : <span style={s.metNo}>Not yet</span>}
+                    </td>
+                    <td style={s.td}>
+                      {p.status === 'completed'
+                        ? <span style={s.completedTag}>completed</span>
+                        : p.met
+                          ? <span style={s.readyTag}>ready to complete</span>
+                          : <span style={{ color: '#888' }}>active</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {tab === 'feedback' && (
         <div>
@@ -160,6 +235,7 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: -2,
   },
   tabActive: { color: '#1a1a2e', borderBottomColor: '#1a1a2e' },
+  tabBadge: { background: '#22c55e', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700, marginLeft: 6 },
   tabHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   count: { fontSize: 13, color: '#666', margin: 0 },
@@ -167,6 +243,11 @@ const s: Record<string, React.CSSProperties> = {
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 10, overflow: 'hidden' },
   th: { background: '#f0f0f7', padding: '10px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700 },
   tr: { borderTop: '1px solid #eee' },
+  trHighlight: { borderTop: '1px solid #eee', background: '#f0fdf4' },
+  metYes: { color: '#16a34a', fontWeight: 700 },
+  metNo: { color: '#888' },
+  completedTag: { background: '#e0e7ff', color: '#3730a3', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
+  readyTag: { background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   td: { padding: '10px 16px', fontSize: 13, verticalAlign: 'top' },
   mono: { fontFamily: 'monospace', fontSize: 12 },
   barWrap: { display: 'flex', alignItems: 'center', gap: 8 },

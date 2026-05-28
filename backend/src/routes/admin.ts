@@ -183,6 +183,83 @@ router.get('/logs', asyncHandler(async (_req, res) => {
   res.json(logs);
 }));
 
+// Per-assignment progress toward each goal's criteria, computed from reading
+// logs recorded AFTER the goal was assigned. Surfaces a "criteria met" flag for
+// the admin without changing the participant's self-reported status. Genre and
+// custom goals can't be auto-verified from stored data (marked not checkable).
+router.get('/goal-progress', asyncHandler(async (_req, res) => {
+  const userGoals = await prisma.userGoal.findMany({
+    where: { status: { in: ['active', 'completed'] } },
+    include: { user: { select: { displayName: true } }, template: true },
+    orderBy: { assignedAt: 'desc' },
+  });
+
+  const userIds = [...new Set(userGoals.map(g => g.userId))];
+  const logs = await prisma.readingLog.findMany({
+    where: { userId: { in: userIds } },
+    select: { userId: true, googleBooksId: true, author: true, minutesRead: true, loggedAt: true },
+  });
+
+  const logsByUser = new Map<string, typeof logs>();
+  for (const log of logs) {
+    const arr = logsByUser.get(log.userId) ?? [];
+    arr.push(log);
+    logsByUser.set(log.userId, arr);
+  }
+
+  const rows = userGoals.map(g => {
+    const since = (logsByUser.get(g.userId) ?? []).filter(l => l.loggedAt >= g.assignedAt);
+    const criteria = (g.template.criteria ?? {}) as Record<string, unknown>;
+
+    let progress = 'Manual only';
+    let met = false;
+    let autoCheckable = true;
+
+    switch (g.template.type) {
+      case 'books_count': {
+        const target = typeof criteria.count === 'number' ? criteria.count : 0;
+        const distinct = new Set(since.map(l => l.googleBooksId)).size;
+        progress = `${distinct} / ${target} books`;
+        met = target > 0 && distinct >= target;
+        break;
+      }
+      case 'minutes': {
+        const target = typeof criteria.minutes === 'number' ? criteria.minutes : 0;
+        const total = since.reduce((sum, l) => sum + l.minutesRead, 0);
+        progress = `${total} / ${target} min`;
+        met = target > 0 && total >= target;
+        break;
+      }
+      case 'author': {
+        const author = typeof criteria.author === 'string' ? criteria.author : '';
+        const matches = author
+          ? since.filter(l => l.author.toLowerCase().includes(author.toLowerCase())).length
+          : 0;
+        progress = `${matches} book(s) by ${author || '?'}`;
+        met = matches > 0;
+        break;
+      }
+      default:
+        autoCheckable = false;
+    }
+
+    return {
+      userGoalId: g.id,
+      participant: g.user.displayName,
+      userId: g.userId,
+      goalTitle: g.template.title,
+      type: g.template.type,
+      status: g.status,
+      assignedAt: g.assignedAt,
+      progress,
+      met,
+      autoCheckable,
+    };
+  });
+
+  res.json(rows);
+}));
+
 router.post('/change-password', asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
   if (!currentPassword || !newPassword) {

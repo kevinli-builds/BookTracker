@@ -111,6 +111,26 @@ export async function getAdminData(): Promise<AdminData> {
   return data;
 }
 
+// ── Goal progress (auto-check) ───────────────────────────────────────────────
+
+export interface GoalProgress {
+  userGoalId: string;
+  participant: string | null;
+  userId: string;
+  goalTitle: string;
+  type: string;
+  status: 'active' | 'completed';
+  assignedAt: string;
+  progress: string;
+  met: boolean;
+  autoCheckable: boolean;
+}
+
+export async function getGoalProgress(): Promise<GoalProgress[]> {
+  const { data } = await api.get('/admin/goal-progress');
+  return data;
+}
+
 export async function changePassword(currentPassword: string, newPassword: string) {
   await api.post('/admin/change-password', { currentPassword, newPassword });
 }
