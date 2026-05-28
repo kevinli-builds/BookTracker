@@ -24,5 +24,10 @@ app.use('/admin', adminRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-const PORT = process.env.PORT ?? 3000;
-app.listen(PORT, () => console.log(`BookTracker backend on port ${PORT}`));
+// Local dev only — Vercel handles routing in serverless mode
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT ?? 3000;
+  app.listen(PORT, () => console.log(`BookTracker backend on port ${PORT}`));
+}
+
+export default app;
