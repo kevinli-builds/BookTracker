@@ -11,10 +11,11 @@ router.post('/', async (req, res) => {
     where: { id: userId },
     update: displayName ? { displayName } : {},
     create: { id: userId, displayName },
-    include: { streak: true },
+    include: { streak: true, inviteCode: true },
   });
 
-  res.json(user);
+  const { inviteCode, ...rest } = user;
+  res.json({ ...rest, hasAccess: !!inviteCode });
 });
 
 export default router;

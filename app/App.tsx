@@ -10,12 +10,14 @@ import SearchScreen from './src/screens/SearchScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import NameEntryScreen from './src/screens/NameEntryScreen';
+import InviteCodeScreen from './src/screens/InviteCodeScreen';
 
 const Tab = createBottomTabNavigator();
 
 interface AppUser {
   id: string;
   displayName: string | null;
+  hasAccess: boolean;
 }
 
 export default function App() {
@@ -25,7 +27,7 @@ export default function App() {
     (async () => {
       const id = await getUserId();
       const u = await upsertUser(id);
-      setUser({ id, displayName: u?.displayName ?? null });
+      setUser({ id, displayName: u?.displayName ?? null, hasAccess: !!u?.hasAccess });
     })();
   }, []);
 
@@ -34,6 +36,19 @@ export default function App() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
       </View>
+    );
+  }
+
+  if (!user.hasAccess) {
+    return (
+      <SafeAreaProvider>
+        <InviteCodeScreen
+          userId={user.id}
+          onRedeemed={name =>
+            setUser({ ...user, hasAccess: true, displayName: name ?? user.displayName })
+          }
+        />
+      </SafeAreaProvider>
     );
   }
 

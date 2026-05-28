@@ -5,6 +5,7 @@ import { clearToken, changePassword } from '../api/client';
 const LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/goals', label: 'Goals' },
+  { to: '/invites', label: 'Invites' },
   { to: '/users', label: 'Users' },
   { to: '/data', label: 'Data' },
 ];

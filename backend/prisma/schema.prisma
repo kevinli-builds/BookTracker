@@ -15,6 +15,17 @@ model User {
   userGoals   UserGoal[]
   feedbacks   Feedback[]
   streak      Streak?
+  inviteCode  InviteCode?
+}
+
+model InviteCode {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  label        String?   // optional pre-assigned participant label, e.g. "P001"
+  usedByUserId String?   @unique
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+  usedBy       User?     @relation(fields: [usedByUserId], references: [id])
 }
 
 model ReadingLog {

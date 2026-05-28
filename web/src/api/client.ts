@@ -132,3 +132,29 @@ export async function getAllLogs(): Promise<AdminReadingLog[]> {
   const { data } = await api.get('/admin/logs');
   return data;
 }
+
+// ── Invite codes ─────────────────────────────────────────────────────────────
+
+export interface InviteCode {
+  id: string;
+  code: string;
+  label: string | null;
+  usedByUserId: string | null;
+  usedAt: string | null;
+  createdAt: string;
+  usedBy: { displayName: string | null } | null;
+}
+
+export async function getInvites(): Promise<InviteCode[]> {
+  const { data } = await api.get('/admin/invites');
+  return data;
+}
+
+export async function createInvites(payload: { count?: number; labels?: string[] }): Promise<InviteCode[]> {
+  const { data } = await api.post('/admin/invites', payload);
+  return data;
+}
+
+export async function deleteInvite(id: string) {
+  await api.delete(`/admin/invites/${id}`);
+}

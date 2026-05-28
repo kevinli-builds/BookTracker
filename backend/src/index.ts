@@ -3,6 +3,7 @@ import cors from 'cors';
 import 'dotenv/config';
 
 import usersRouter from './routes/users';
+import invitesRouter from './routes/invites';
 import booksRouter from './routes/books';
 import logsRouter from './routes/logs';
 import goalsRouter from './routes/goals';
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/users', usersRouter);
+app.use('/invites', invitesRouter);
 app.use('/books', booksRouter);
 app.use('/logs', logsRouter);
 app.use('/goals', goalsRouter);

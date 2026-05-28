@@ -12,6 +12,11 @@ export async function upsertUser(userId: string, displayName?: string) {
   return data;
 }
 
+export async function redeemInvite(userId: string, code: string) {
+  const { data } = await api.post('/invites/redeem', { userId, code });
+  return data as { displayName: string | null; hasAccess: boolean };
+}
+
 // ── Books ──────────────────────────────────────────────────────────────────
 
 export interface BookResult {
