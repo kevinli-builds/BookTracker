@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AdminUser, GoalTemplate, assignGoals, getAdminGoals, getUsers } from '../api/client';
+import { AdminUser, GoalTemplate, assignGoals, getAdminGoals, getAllLogs, getUsers } from '../api/client';
+import { downloadCsv } from '../lib/csv';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -45,11 +46,48 @@ export default function UsersPage() {
 
   const poolCount = templates.filter(t => t.randomPool).length;
 
+  const exportUsers = () => {
+    downloadCsv(
+      `booktracker-users-${new Date().toISOString().slice(0, 10)}.csv`,
+      users.map(u => ({
+        participant: u.displayName ?? '',
+        user_id: u.id,
+        joined: new Date(u.createdAt).toISOString(),
+        reading_logs: u._count.logs,
+        goals: u._count.userGoals,
+        current_streak: u.streak?.currentStreak ?? 0,
+        longest_streak: u.streak?.longestStreak ?? 0,
+      }))
+    );
+  };
+
+  const exportLogs = async () => {
+    const logs = await getAllLogs();
+    downloadCsv(
+      `booktracker-reading-logs-${new Date().toISOString().slice(0, 10)}.csv`,
+      logs.map(l => ({
+        participant: l.user?.displayName ?? '',
+        user_id: l.userId,
+        title: l.title,
+        author: l.author,
+        minutes_read: l.minutesRead,
+        google_books_id: l.googleBooksId,
+        logged_at: new Date(l.loggedAt).toISOString(),
+      }))
+    );
+  };
+
   if (loading) return <p>Loading...</p>;
 
   return (
     <div>
-      <h1 style={s.h1}>Users</h1>
+      <div style={s.header}>
+        <h1 style={s.h1}>Users</h1>
+        <div style={s.exportGroup}>
+          <button style={s.exportBtn} onClick={exportUsers}>Export users CSV</button>
+          <button style={s.exportBtn} onClick={exportLogs}>Export reading logs CSV</button>
+        </div>
+      </div>
 
       <div style={s.toolBar}>
         <span style={s.meta}>{users.length} users · {selected.size} selected</span>
@@ -109,7 +147,10 @@ export default function UsersPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  h1: { fontSize: 24, fontWeight: 800, marginBottom: 16 },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 },
+  h1: { fontSize: 24, fontWeight: 800, margin: 0 },
+  exportGroup: { display: 'flex', gap: 8 },
+  exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   toolBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 },
   toolRight: { display: 'flex', alignItems: 'center', gap: 10 },
   meta: { fontSize: 13, color: '#666' },

@@ -123,6 +123,14 @@ router.post('/assign', async (req, res) => {
   res.json({ assigned });
 });
 
+router.get('/logs', async (_req, res) => {
+  const logs = await prisma.readingLog.findMany({
+    include: { user: { select: { displayName: true } } },
+    orderBy: { loggedAt: 'desc' },
+  });
+  res.json(logs);
+});
+
 router.post('/change-password', async (req, res) => {
   const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
   if (!currentPassword || !newPassword) {

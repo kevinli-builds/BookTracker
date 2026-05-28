@@ -9,25 +9,42 @@ import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import NameEntryScreen from './src/screens/NameEntryScreen';
 
 const Tab = createBottomTabNavigator();
 
+interface AppUser {
+  id: string;
+  displayName: string | null;
+}
+
 export default function App() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
 
   useEffect(() => {
     (async () => {
       const id = await getUserId();
-      await upsertUser(id);
-      setUserId(id);
+      const u = await upsertUser(id);
+      setUser({ id, displayName: u?.displayName ?? null });
     })();
   }, []);
 
-  if (!userId) {
+  if (!user) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
       </View>
+    );
+  }
+
+  if (!user.displayName) {
+    return (
+      <SafeAreaProvider>
+        <NameEntryScreen
+          userId={user.id}
+          onSaved={name => setUser({ ...user, displayName: name })}
+        />
+      </SafeAreaProvider>
     );
   }
 
@@ -36,16 +53,22 @@ export default function App() {
       <NavigationContainer>
         <Tab.Navigator screenOptions={{ headerShown: true }}>
           <Tab.Screen name="Home" options={{ title: 'Home' }}>
-            {() => <HomeScreen userId={userId} />}
+            {() => <HomeScreen userId={user.id} />}
           </Tab.Screen>
           <Tab.Screen name="Search" options={{ title: 'Log a Book' }}>
-            {() => <SearchScreen userId={userId} />}
+            {() => <SearchScreen userId={user.id} />}
           </Tab.Screen>
           <Tab.Screen name="Goals" options={{ title: 'Goals' }}>
-            {() => <GoalsScreen userId={userId} />}
+            {() => <GoalsScreen userId={user.id} />}
           </Tab.Screen>
           <Tab.Screen name="Profile" options={{ title: 'Profile' }}>
-            {() => <ProfileScreen userId={userId} />}
+            {() => (
+              <ProfileScreen
+                userId={user.id}
+                displayName={user.displayName}
+                onNameChange={name => setUser({ ...user, displayName: name })}
+              />
+            )}
           </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>

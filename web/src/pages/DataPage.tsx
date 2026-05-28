@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AdminData, getAdminData } from '../api/client';
+import { downloadCsv } from '../lib/csv';
 
 export default function DataPage() {
   const [data, setData] = useState<AdminData | null>(null);
@@ -12,6 +13,33 @@ export default function DataPage() {
 
   if (loading) return <p>Loading...</p>;
   if (!data) return <p>Failed to load data.</p>;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const exportFeedback = () => {
+    downloadCsv(
+      `booktracker-feedback-${today}.csv`,
+      data.recentFeedback.map(f => ({
+        date: new Date(f.createdAt).toISOString(),
+        goal: f.userGoal.template.title,
+        rating: f.rating ?? '',
+        comment: f.text ?? '',
+        user_id: f.userId,
+      }))
+    );
+  };
+
+  const exportGoals = () => {
+    downloadCsv(
+      `booktracker-goal-outcomes-${today}.csv`,
+      data.goalCompletionRates.map(g => ({
+        goal: g.title,
+        assigned: g.total,
+        completed: g.completed,
+        completion_rate_pct: g.rate,
+      }))
+    );
+  };
 
   return (
     <div>
@@ -31,7 +59,10 @@ export default function DataPage() {
 
       {tab === 'feedback' && (
         <div>
-          <p style={s.count}>{data.recentFeedback.length} feedback entries (most recent 50)</p>
+          <div style={s.tabHeader}>
+            <p style={s.count}>{data.recentFeedback.length} feedback entries (most recent 50)</p>
+            <button style={s.exportBtn} onClick={exportFeedback}>Export CSV</button>
+          </div>
           {data.recentFeedback.length === 0 ? (
             <p style={s.empty}>No feedback submitted yet.</p>
           ) : (
@@ -67,6 +98,10 @@ export default function DataPage() {
 
       {tab === 'goals' && (
         <div>
+          <div style={s.tabHeader}>
+            <p style={s.count}>{data.goalCompletionRates.length} goals</p>
+            <button style={s.exportBtn} onClick={exportGoals}>Export CSV</button>
+          </div>
           <table style={s.table}>
             <thead>
               <tr>
@@ -125,7 +160,9 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: -2,
   },
   tabActive: { color: '#1a1a2e', borderBottomColor: '#1a1a2e' },
-  count: { fontSize: 13, color: '#666', marginBottom: 12 },
+  tabHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
+  count: { fontSize: 13, color: '#666', margin: 0 },
   empty: { color: '#999', textAlign: 'center', marginTop: 32 },
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 10, overflow: 'hidden' },
   th: { background: '#f0f0f7', padding: '10px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700 },

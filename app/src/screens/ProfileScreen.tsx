@@ -5,17 +5,24 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { UserStats, getStats } from '../api/client';
+import { UserStats, getStats, upsertUser } from '../api/client';
 
 interface Props {
   userId: string;
+  displayName: string | null;
+  onNameChange: (name: string) => void;
 }
 
-export default function ProfileScreen({ userId }: Props) {
+export default function ProfileScreen({ userId, displayName, onNameChange }: Props) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState(displayName ?? '');
+  const [savingName, setSavingName] = useState(false);
 
   const load = useCallback(async () => {
     const s = await getStats(userId);
@@ -30,6 +37,19 @@ export default function ProfileScreen({ userId }: Props) {
     setRefreshing(false);
   };
 
+  const saveName = async () => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || savingName) return;
+    setSavingName(true);
+    try {
+      await upsertUser(userId, trimmed);
+      onNameChange(trimmed);
+      setEditing(false);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   if (!stats) {
     return <View style={styles.center}><Text>Loading...</Text></View>;
   }
@@ -39,6 +59,33 @@ export default function ProfileScreen({ userId }: Props) {
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      <View style={styles.nameCard}>
+        <Text style={styles.nameLabel}>Participant</Text>
+        {editing ? (
+          <View style={styles.nameEditRow}>
+            <TextInput
+              style={styles.nameInput}
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              autoFocus
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={saveName}
+            />
+            <TouchableOpacity onPress={saveName} disabled={savingName}>
+              <Text style={styles.nameAction}>{savingName ? '…' : 'Save'}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.nameEditRow}>
+            <Text style={styles.nameValue}>{displayName}</Text>
+            <TouchableOpacity onPress={() => { setNameDraft(displayName ?? ''); setEditing(true); }}>
+              <Text style={styles.nameAction}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       <Text style={styles.heading}>Your Reading Stats</Text>
 
       <View style={styles.grid}>
@@ -102,6 +149,25 @@ const styles = StyleSheet.create({
   container: { padding: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heading: { fontSize: 22, fontWeight: '800', marginBottom: 20 },
+  nameCard: {
+    backgroundColor: '#f0f0f7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  nameLabel: { fontSize: 12, color: '#888', marginBottom: 4, fontWeight: '600' },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  nameValue: { fontSize: 18, fontWeight: '700', flex: 1 },
+  nameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 8,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  nameAction: { color: '#1a1a2e', fontWeight: '700', fontSize: 15 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   bigStat: {
     width: '47%',

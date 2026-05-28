@@ -114,3 +114,21 @@ export async function getAdminData(): Promise<AdminData> {
 export async function changePassword(currentPassword: string, newPassword: string) {
   await api.post('/admin/change-password', { currentPassword, newPassword });
 }
+
+// ── Reading Logs (raw export) ────────────────────────────────────────────────
+
+export interface AdminReadingLog {
+  id: string;
+  userId: string;
+  user: { displayName: string | null };
+  googleBooksId: string;
+  title: string;
+  author: string;
+  minutesRead: number;
+  loggedAt: string;
+}
+
+export async function getAllLogs(): Promise<AdminReadingLog[]> {
+  const { data } = await api.get('/admin/logs');
+  return data;
+}
