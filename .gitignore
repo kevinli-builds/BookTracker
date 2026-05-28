@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+*.db
+.expo/
+.expo-shared/
+.DS_Store

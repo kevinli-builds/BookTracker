@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id
+  displayName String?
+  createdAt   DateTime     @default(now())
+  logs        ReadingLog[]
+  userGoals   UserGoal[]
+  feedbacks   Feedback[]
+  streak      Streak?
+}
+
+model ReadingLog {
+  id            String   @id @default(cuid())
+  userId        String
+  googleBooksId String
+  title         String
+  author        String
+  coverUrl      String?
+  minutesRead   Int      @default(0)
+  loggedAt      DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, loggedAt])
+}
+
+model Streak {
+  userId        String    @id
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastReadDate  DateTime?
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+model GoalTemplate {
+  id          String     @id @default(cuid())
+  title       String
+  description String
+  type        String     // books_count | minutes | genre | author | custom
+  criteria    Json
+  randomPool  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  userGoals   UserGoal[]
+}
+
+model UserGoal {
+  id          String       @id @default(cuid())
+  userId      String
+  templateId  String
+  status      String       @default("active")  // active | completed | abandoned
+  assignedBy  String       @default("self")    // self | system
+  assignedAt  DateTime     @default(now())
+  completedAt DateTime?
+  deadline    DateTime?
+  user        User         @relation(fields: [userId], references: [id])
+  template    GoalTemplate @relation(fields: [templateId], references: [id])
+  feedbacks   Feedback[]
+}
+
+model Feedback {
+  id         String   @id @default(cuid())
+  userId     String
+  userGoalId String
+  rating     Int?
+  text       String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  userGoal   UserGoal @relation(fields: [userGoalId], references: [id])
+}
+
+model Provisioner {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
