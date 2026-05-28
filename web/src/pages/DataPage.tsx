@@ -24,11 +24,14 @@ export default function DataPage() {
     downloadCsv(
       `booktracker-feedback-${today}.csv`,
       data.recentFeedback.map(f => ({
+        invite_code: f.user?.inviteCode?.code ?? '',
+        participant_label: f.user?.inviteCode?.label ?? '',
+        display_name: f.user?.displayName ?? '',
+        user_id: f.userId,
         date: new Date(f.createdAt).toISOString(),
         goal: f.userGoal.template.title,
         rating: f.rating ?? '',
         comment: f.text ?? '',
-        user_id: f.userId,
       }))
     );
   };
@@ -49,7 +52,9 @@ export default function DataPage() {
     downloadCsv(
       `booktracker-goal-progress-${today}.csv`,
       (progress ?? []).map(p => ({
-        participant: p.participant ?? '',
+        invite_code: p.inviteCode ?? '',
+        participant_label: p.participantLabel ?? '',
+        display_name: p.participant ?? '',
         user_id: p.userId,
         goal: p.goalTitle,
         type: p.type,
@@ -148,7 +153,7 @@ export default function DataPage() {
                   <th style={s.th}>Goal</th>
                   <th style={s.th}>Rating</th>
                   <th style={s.th}>Comment</th>
-                  <th style={s.th}>User</th>
+                  <th style={s.th}>Participant</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,7 +167,10 @@ export default function DataPage() {
                       ) : '—'}
                     </td>
                     <td style={{ ...s.td, maxWidth: 300 }}>{f.text ?? <em style={{ color: '#aaa' }}>no comment</em>}</td>
-                    <td style={{ ...s.td, ...s.mono }}>{f.userId.slice(0, 10)}…</td>
+                    <td style={s.td}>
+                      {f.user?.displayName ?? <em style={{ color: '#aaa' }}>unnamed</em>}
+                      {f.user?.inviteCode?.code && <span style={s.codeTag}>{f.user.inviteCode.code}</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -250,6 +258,7 @@ const s: Record<string, React.CSSProperties> = {
   readyTag: { background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   td: { padding: '10px 16px', fontSize: 13, verticalAlign: 'top' },
   mono: { fontFamily: 'monospace', fontSize: 12 },
+  codeTag: { fontFamily: 'monospace', fontSize: 11, background: '#f0f0f7', borderRadius: 4, padding: '1px 5px', marginLeft: 6 },
   barWrap: { display: 'flex', alignItems: 'center', gap: 8 },
   bar: { height: 10, background: '#1a1a2e', borderRadius: 5, minWidth: 2 },
   barLabel: { fontSize: 12, color: '#555' },

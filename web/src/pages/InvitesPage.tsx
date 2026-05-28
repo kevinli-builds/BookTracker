@@ -67,6 +67,17 @@ export default function InvitesPage() {
         <button style={s.exportBtn} onClick={exportCsv} disabled={invites.length === 0}>Export codes CSV</button>
       </div>
 
+      <div style={s.howto}>
+        <strong style={s.howtoTitle}>How to invite participants</strong>
+        <ol style={s.howtoList}>
+          <li><strong>Generate a code for each participant.</strong> Use “One per participant” and paste your participant IDs (e.g. <code style={s.code}>P001</code>, <code style={s.code}>P002</code>) — one per line. Each person gets a unique, single-use code, and their ID becomes their name in the app.</li>
+          <li><strong>Send each person their code.</strong> Use the <em>Copy</em> button in the table, or <em>Export codes CSV</em> to hand the whole list (code ↔ participant ID) to whoever runs recruitment.</li>
+          <li><strong>They enter it in the BookTracker app.</strong> On first launch the app asks for an invite code. A valid, unused code lets them in; used or invalid codes are rejected.</li>
+          <li><strong>Track who’s joined.</strong> Once redeemed, a code shows as “Used” with the participant’s name here, and the same code appears in every data export so you can match reading activity back to who you paid.</li>
+        </ol>
+        <p style={s.howtoNote}>Tip: keep your master list of code → real person separate from the app. The app only ever sees the participant ID you assign.</p>
+      </div>
+
       <div style={s.card}>
         <div style={s.modeRow}>
           <label style={s.radio}>
@@ -158,6 +169,11 @@ const s: Record<string, React.CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 },
   h1: { fontSize: 24, fontWeight: 800, margin: 0 },
   exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
+  howto: { background: '#f0f4ff', border: '1px solid #d8e0ff', borderRadius: 10, padding: '16px 20px', marginBottom: 20 },
+  howtoTitle: { fontSize: 14, color: '#1a1a2e' },
+  howtoList: { margin: '10px 0 0', paddingLeft: 20, fontSize: 13, color: '#374151', lineHeight: 1.7 },
+  howtoNote: { fontSize: 12, color: '#6b7280', margin: '10px 0 0', fontStyle: 'italic' },
+  code: { background: '#fff', border: '1px solid #d8e0ff', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 12 },
   card: { background: '#fff', borderRadius: 10, padding: 20, marginBottom: 20 },
   modeRow: { display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' },
   radio: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' },

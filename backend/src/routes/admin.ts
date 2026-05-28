@@ -4,6 +4,7 @@ import prisma from '../lib/prisma';
 import { signToken, requireAuth } from '../lib/auth';
 import { generateCode } from '../lib/inviteCode';
 import { asyncHandler } from '../lib/asyncHandler';
+import { computeGoalProgress } from '../lib/goalProgress';
 
 const router = Router();
 
@@ -43,11 +44,93 @@ router.get('/users', asyncHandler(async (_req, res) => {
   const users = await prisma.user.findMany({
     include: {
       streak: true,
+      inviteCode: { select: { code: true, label: true } },
       _count: { select: { logs: true, userGoals: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
   res.json(users);
+}));
+
+// Edit a participant: rename and/or change status (active | withdrawn).
+router.patch('/users/:id', asyncHandler(async (req, res) => {
+  const { displayName, status } = req.body as { displayName?: string; status?: string };
+  const data: { displayName?: string; status?: string } = {};
+  if (typeof displayName === 'string') data.displayName = displayName.trim() || null as unknown as string;
+  if (status === 'active' || status === 'withdrawn') data.status = status;
+  if (Object.keys(data).length === 0) { res.status(400).json({ error: 'Nothing to update' }); return; }
+
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data,
+    include: {
+      streak: true,
+      inviteCode: { select: { code: true, label: true } },
+      _count: { select: { logs: true, userGoals: true } },
+    },
+  });
+  res.json(user);
+}));
+
+// Full detail for one participant: code/label, status, logs, goals (with
+// auto-checked progress), and feedback — powers the admin detail view.
+router.get('/users/:id', asyncHandler(async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.params.id },
+    include: {
+      streak: true,
+      inviteCode: { select: { code: true, label: true } },
+      logs: { orderBy: { loggedAt: 'desc' } },
+      userGoals: { include: { template: true }, orderBy: { assignedAt: 'desc' } },
+      feedbacks: { include: { userGoal: { include: { template: true } } }, orderBy: { createdAt: 'desc' } },
+    },
+  });
+  if (!user) { res.status(404).json({ error: 'Not found' }); return; }
+
+  const goals = user.userGoals.map(g => {
+    const since = user.logs.filter(l => l.loggedAt >= g.assignedAt);
+    const { progress, met, autoCheckable } = computeGoalProgress(
+      g.template.type,
+      (g.template.criteria ?? {}) as Record<string, unknown>,
+      since
+    );
+    return {
+      userGoalId: g.id,
+      title: g.template.title,
+      type: g.template.type,
+      status: g.status,
+      assignedBy: g.assignedBy,
+      assignedAt: g.assignedAt,
+      deadline: g.deadline,
+      progress,
+      met,
+      autoCheckable,
+    };
+  });
+
+  res.json({
+    id: user.id,
+    displayName: user.displayName,
+    status: user.status,
+    createdAt: user.createdAt,
+    inviteCode: user.inviteCode,
+    streak: user.streak,
+    logs: user.logs.map(l => ({
+      id: l.id,
+      title: l.title,
+      author: l.author,
+      minutesRead: l.minutesRead,
+      loggedAt: l.loggedAt,
+    })),
+    goals,
+    feedback: user.feedbacks.map(f => ({
+      id: f.id,
+      goalTitle: f.userGoal.template.title,
+      rating: f.rating,
+      text: f.text,
+      createdAt: f.createdAt,
+    })),
+  });
 }));
 
 router.get('/goals', asyncHandler(async (_req, res) => {
@@ -101,7 +184,7 @@ router.post('/assign', asyncHandler(async (req, res) => {
 
   const targets = userIds
     ? await prisma.user.findMany({ where: { id: { in: userIds } } })
-    : await prisma.user.findMany();
+    : await prisma.user.findMany({ where: { status: 'active' } });
 
   let assigned = 0;
   for (const user of targets) {
@@ -177,7 +260,7 @@ router.delete('/invites/:id', asyncHandler(async (req, res) => {
 
 router.get('/logs', asyncHandler(async (_req, res) => {
   const logs = await prisma.readingLog.findMany({
-    include: { user: { select: { displayName: true } } },
+    include: { user: { select: { displayName: true, inviteCode: { select: { code: true, label: true } } } } },
     orderBy: { loggedAt: 'desc' },
   });
   res.json(logs);
@@ -190,7 +273,10 @@ router.get('/logs', asyncHandler(async (_req, res) => {
 router.get('/goal-progress', asyncHandler(async (_req, res) => {
   const userGoals = await prisma.userGoal.findMany({
     where: { status: { in: ['active', 'completed'] } },
-    include: { user: { select: { displayName: true } }, template: true },
+    include: {
+      user: { select: { displayName: true, inviteCode: { select: { code: true, label: true } } } },
+      template: true,
+    },
     orderBy: { assignedAt: 'desc' },
   });
 
@@ -209,43 +295,17 @@ router.get('/goal-progress', asyncHandler(async (_req, res) => {
 
   const rows = userGoals.map(g => {
     const since = (logsByUser.get(g.userId) ?? []).filter(l => l.loggedAt >= g.assignedAt);
-    const criteria = (g.template.criteria ?? {}) as Record<string, unknown>;
-
-    let progress = 'Manual only';
-    let met = false;
-    let autoCheckable = true;
-
-    switch (g.template.type) {
-      case 'books_count': {
-        const target = typeof criteria.count === 'number' ? criteria.count : 0;
-        const distinct = new Set(since.map(l => l.googleBooksId)).size;
-        progress = `${distinct} / ${target} books`;
-        met = target > 0 && distinct >= target;
-        break;
-      }
-      case 'minutes': {
-        const target = typeof criteria.minutes === 'number' ? criteria.minutes : 0;
-        const total = since.reduce((sum, l) => sum + l.minutesRead, 0);
-        progress = `${total} / ${target} min`;
-        met = target > 0 && total >= target;
-        break;
-      }
-      case 'author': {
-        const author = typeof criteria.author === 'string' ? criteria.author : '';
-        const matches = author
-          ? since.filter(l => l.author.toLowerCase().includes(author.toLowerCase())).length
-          : 0;
-        progress = `${matches} book(s) by ${author || '?'}`;
-        met = matches > 0;
-        break;
-      }
-      default:
-        autoCheckable = false;
-    }
+    const { progress, met, autoCheckable } = computeGoalProgress(
+      g.template.type,
+      (g.template.criteria ?? {}) as Record<string, unknown>,
+      since
+    );
 
     return {
       userGoalId: g.id,
       participant: g.user.displayName,
+      inviteCode: g.user.inviteCode?.code ?? null,
+      participantLabel: g.user.inviteCode?.label ?? null,
       userId: g.userId,
       goalTitle: g.template.title,
       type: g.template.type,
@@ -290,7 +350,10 @@ router.get('/data', asyncHandler(async (_req, res) => {
     prisma.userGoal.count(),
     prisma.userGoal.count({ where: { status: 'completed' } }),
     prisma.feedback.findMany({
-      include: { userGoal: { include: { template: true } } },
+      include: {
+        userGoal: { include: { template: true } },
+        user: { select: { displayName: true, inviteCode: { select: { code: true, label: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     }),

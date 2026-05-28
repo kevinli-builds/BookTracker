@@ -36,16 +36,56 @@ export async function login(email: string, password: string) {
 
 // ── Users ──────────────────────────────────────────────────────────────────
 
+export interface InviteRef {
+  code: string;
+  label: string | null;
+}
+
 export interface AdminUser {
   id: string;
   displayName: string | null;
+  status: 'active' | 'withdrawn';
   createdAt: string;
   streak: { currentStreak: number; longestStreak: number } | null;
+  inviteCode: InviteRef | null;
   _count: { logs: number; userGoals: number };
 }
 
 export async function getUsers(): Promise<AdminUser[]> {
   const { data } = await api.get('/admin/users');
+  return data;
+}
+
+export async function updateUser(id: string, payload: { displayName?: string; status?: 'active' | 'withdrawn' }): Promise<AdminUser> {
+  const { data } = await api.patch(`/admin/users/${id}`, payload);
+  return data;
+}
+
+export interface UserDetail {
+  id: string;
+  displayName: string | null;
+  status: 'active' | 'withdrawn';
+  createdAt: string;
+  inviteCode: InviteRef | null;
+  streak: { currentStreak: number; longestStreak: number; lastReadDate: string | null } | null;
+  logs: { id: string; title: string; author: string; minutesRead: number; loggedAt: string }[];
+  goals: {
+    userGoalId: string;
+    title: string;
+    type: string;
+    status: string;
+    assignedBy: string;
+    assignedAt: string;
+    deadline: string | null;
+    progress: string;
+    met: boolean;
+    autoCheckable: boolean;
+  }[];
+  feedback: { id: string; goalTitle: string; rating: number | null; text: string | null; createdAt: string }[];
+}
+
+export async function getUserDetail(id: string): Promise<UserDetail> {
+  const { data } = await api.get(`/admin/users/${id}`);
   return data;
 }
 
@@ -103,6 +143,7 @@ export interface AdminData {
     text: string | null;
     createdAt: string;
     userGoal: { template: { title: string } };
+    user: { displayName: string | null; inviteCode: InviteRef | null } | null;
   }[];
 }
 
@@ -116,6 +157,8 @@ export async function getAdminData(): Promise<AdminData> {
 export interface GoalProgress {
   userGoalId: string;
   participant: string | null;
+  inviteCode: string | null;
+  participantLabel: string | null;
   userId: string;
   goalTitle: string;
   type: string;
@@ -140,7 +183,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 export interface AdminReadingLog {
   id: string;
   userId: string;
-  user: { displayName: string | null };
+  user: { displayName: string | null; inviteCode: InviteRef | null };
   googleBooksId: string;
   title: string;
   author: string;
