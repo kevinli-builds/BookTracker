@@ -23,7 +23,7 @@
       "package": "com.booktracker.app"
     },
     "extra": {
-      "apiUrl": "http://localhost:3000"
+      "apiUrl": "https://book-tracker-five-nu.vercel.app"
     }
   }
 }
