@@ -110,3 +110,7 @@ export async function getAdminData(): Promise<AdminData> {
   const { data } = await api.get('/admin/data');
   return data;
 }
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  await api.post('/admin/change-password', { currentPassword, newPassword });
+}

@@ -123,6 +123,29 @@ router.post('/assign', async (req, res) => {
   res.json({ assigned });
 });
 
+router.post('/change-password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ error: 'currentPassword and newPassword required' });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: 'New password must be at least 8 characters' });
+    return;
+  }
+
+  const provisionerId = (req as { provisionerId?: string }).provisionerId;
+  const provisioner = await prisma.provisioner.findUnique({ where: { id: provisionerId } });
+  if (!provisioner) { res.status(404).json({ error: 'Not found' }); return; }
+
+  const valid = await bcrypt.compare(currentPassword, provisioner.passwordHash);
+  if (!valid) { res.status(401).json({ error: 'Current password is incorrect' }); return; }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await prisma.provisioner.update({ where: { id: provisionerId }, data: { passwordHash } });
+  res.json({ ok: true });
+});
+
 router.get('/data', async (_req, res) => {
   const [totalUsers, totalLogs, totalGoals, completedGoals, feedbacks, topBooksRaw] = await Promise.all([
     prisma.user.count(),
