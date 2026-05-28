@@ -1,8 +1,39 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 const api = axios.create({ baseURL: BASE_URL });
+
+// App-level hooks, registered by App.tsx. Kept out of React so the single axios
+// instance can drive a global error banner and session-expiry redirect.
+let onApiError: ((message: string) => void) | null = null;
+let onSessionExpired: (() => void) | null = null;
+
+export function setApiErrorHandler(fn: ((message: string) => void) | null) { onApiError = fn; }
+export function setSessionExpiredHandler(fn: (() => void) | null) { onSessionExpired = fn; }
+
+function humanMessage(error: AxiosError): string {
+  const data = error.response?.data as { error?: string } | undefined;
+  if (data?.error) return data.error;
+  if (error.response) return `Request failed (${error.response.status}).`;
+  return "Can't reach the server. Check your connection and try again.";
+}
+
+api.interceptors.response.use(
+  res => res,
+  (error: AxiosError) => {
+    const isLogin = (error.config?.url ?? '').includes('/admin/login');
+    if (error.response?.status === 401 && !isLogin) {
+      // Token missing/expired/invalid — drop it and bounce to the login screen.
+      clearToken();
+      onSessionExpired?.();
+    } else if (!isLogin) {
+      // Surface everything else in a global banner (pages may also handle it).
+      onApiError?.(humanMessage(error));
+    }
+    return Promise.reject(error);
+  }
+);
 
 let _token: string | null = localStorage.getItem('admin_token');
 

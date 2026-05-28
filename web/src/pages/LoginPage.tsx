@@ -1,7 +1,7 @@
 import React, { FormEvent, useState } from 'react';
 import { login } from '../api/client';
 
-export default function LoginPage({ onLogin }: { onLogin: () => void }) {
+export default function LoginPage({ onLogin, notice }: { onLogin: () => void; notice?: string | null }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,6 +26,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
       <form style={styles.card} onSubmit={submit}>
         <h1 style={styles.title}>BookTracker</h1>
         <p style={styles.sub}>Provisioner login</p>
+        {notice && !error && <p style={styles.notice}>{notice}</p>}
         {error && <p style={styles.error}>{error}</p>}
         <label style={styles.label}>Email</label>
         <input
@@ -73,6 +74,7 @@ const styles: Record<string, React.CSSProperties> = {
   title: { fontSize: 26, fontWeight: 800, color: '#1a1a2e', marginBottom: 2 },
   sub: { fontSize: 14, color: '#888', marginBottom: 12 },
   error: { color: '#ef4444', fontSize: 13, background: '#fef2f2', padding: '8px 12px', borderRadius: 8 },
+  notice: { color: '#92400e', fontSize: 13, background: '#fffbeb', padding: '8px 12px', borderRadius: 8 },
   label: { fontSize: 13, fontWeight: 600, color: '#555', marginTop: 4 },
   input: {
     border: '1px solid #ddd',
