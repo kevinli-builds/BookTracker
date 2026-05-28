@@ -2,6 +2,7 @@ interface ProgressLog {
   googleBooksId: string;
   author: string;
   minutesRead: number;
+  categories?: string[];
 }
 
 export interface GoalProgressResult {
@@ -33,6 +34,13 @@ export function computeGoalProgress(
       const author = typeof criteria.author === 'string' ? criteria.author : '';
       const matches = author ? logs.filter(l => l.author.toLowerCase().includes(author.toLowerCase())).length : 0;
       return { progress: `${matches} book(s) by ${author || '?'}`, met: matches > 0, autoCheckable: true };
+    }
+    case 'genre': {
+      const genre = typeof criteria.genre === 'string' ? criteria.genre : '';
+      const matches = genre
+        ? logs.filter(l => (l.categories ?? []).some(c => c.toLowerCase().includes(genre.toLowerCase()))).length
+        : 0;
+      return { progress: `${matches} book(s) in ${genre || '?'}`, met: matches > 0, autoCheckable: true };
     }
     default:
       return { progress: 'Manual only', met: false, autoCheckable: false };

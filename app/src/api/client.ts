@@ -54,6 +54,7 @@ export async function logBook(params: {
   author: string;
   coverUrl?: string | null;
   minutesRead?: number;
+  categories?: string[];
 }): Promise<ReadingLog> {
   const { data } = await api.post('/logs', params);
   return data;

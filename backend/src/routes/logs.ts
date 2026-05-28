@@ -6,13 +6,14 @@ import { asyncHandler } from '../lib/asyncHandler';
 const router = Router();
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { userId, googleBooksId, title, author, coverUrl, minutesRead } = req.body as {
+  const { userId, googleBooksId, title, author, coverUrl, minutesRead, categories } = req.body as {
     userId: string;
     googleBooksId: string;
     title: string;
     author: string;
     coverUrl?: string;
     minutesRead?: number;
+    categories?: string[];
   };
 
   if (!userId || !googleBooksId || !title || !author) {
@@ -21,7 +22,15 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const log = await prisma.readingLog.create({
-    data: { userId, googleBooksId, title, author, coverUrl, minutesRead: minutesRead ?? 0 },
+    data: {
+      userId,
+      googleBooksId,
+      title,
+      author,
+      coverUrl,
+      minutesRead: minutesRead ?? 0,
+      categories: Array.isArray(categories) ? categories.filter(c => typeof c === 'string') : [],
+    },
   });
 
   await updateStreak(userId);

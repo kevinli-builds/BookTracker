@@ -49,6 +49,7 @@ export default function SearchScreen({ userId }: Props) {
         author: selected.author,
         coverUrl: selected.coverUrl,
         minutesRead: minutes ? parseInt(minutes, 10) : 0,
+        categories: selected.categories,
       });
       Alert.alert('Logged!', `"${selected.title}" added to your reading log.`);
       setSelected(null);
