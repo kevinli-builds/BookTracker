@@ -68,10 +68,18 @@ export default function InvitesPage() {
       </div>
 
       <div style={s.howto}>
-        <strong style={s.howtoTitle}>How to invite participants</strong>
+        <strong style={s.howtoTitle}>Step 1 · Getting the app onto a participant’s phone</strong>
+        <ol style={s.howtoList}>
+          <li><strong>Have them install “Expo Go.”</strong> It’s a free app on the Apple App Store (iPhone) and Google Play (Android). BookTracker runs inside Expo Go, so there’s no separate “BookTracker” listing for them to search for.</li>
+          <li><strong>Send them your study’s BookTracker link.</strong> When they open that link on their phone it launches BookTracker inside Expo Go — on iPhone they open it in Safari or the Camera app, on Android they tap the link or scan its QR code.</li>
+          <li><strong>BookTracker opens.</strong> From here the invite code below takes over.</li>
+        </ol>
+        <p style={s.howtoNote}>Don’t have a link/QR to share yet? It’s created once the app is published to Expo — ask your developer for the study’s BookTracker link and QR, then paste them into your recruitment message.</p>
+
+        <strong style={{ ...s.howtoTitle, ...s.howtoTitle2 }}>Step 2 · Inviting &amp; tracking participants</strong>
         <ol style={s.howtoList}>
           <li><strong>Generate a code for each participant.</strong> Use “One per participant” and paste your participant IDs (e.g. <code style={s.code}>P001</code>, <code style={s.code}>P002</code>) — one per line. Each person gets a unique, single-use code, and their ID becomes their name in the app.</li>
-          <li><strong>Send each person their code.</strong> Use the <em>Copy</em> button in the table, or <em>Export codes CSV</em> to hand the whole list (code ↔ participant ID) to whoever runs recruitment.</li>
+          <li><strong>Send each person their code</strong> alongside the app link from Step 1. Use the <em>Copy</em> button in the table, or <em>Export codes CSV</em> to hand the whole list (code ↔ participant ID) to whoever runs recruitment.</li>
           <li><strong>They enter it in the BookTracker app.</strong> On first launch the app asks for an invite code. A valid, unused code lets them in; used or invalid codes are rejected.</li>
           <li><strong>Track who’s joined.</strong> Once redeemed, a code shows as “Used” with the participant’s name here, and the same code appears in every data export so you can match reading activity back to who you paid.</li>
         </ol>
@@ -170,7 +178,8 @@ const s: Record<string, React.CSSProperties> = {
   h1: { fontSize: 24, fontWeight: 800, margin: 0 },
   exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   howto: { background: '#f0f4ff', border: '1px solid #d8e0ff', borderRadius: 10, padding: '16px 20px', marginBottom: 20 },
-  howtoTitle: { fontSize: 14, color: '#1a1a2e' },
+  howtoTitle: { fontSize: 14, color: '#1a1a2e', display: 'block' },
+  howtoTitle2: { marginTop: 18 },
   howtoList: { margin: '10px 0 0', paddingLeft: 20, fontSize: 13, color: '#374151', lineHeight: 1.7 },
   howtoNote: { fontSize: 12, color: '#6b7280', margin: '10px 0 0', fontStyle: 'italic' },
   code: { background: '#fff', border: '1px solid #d8e0ff', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 12 },
