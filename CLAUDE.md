@@ -18,7 +18,7 @@ label baked into their invite code) — no passwords, minimal PII.
 
 | Layer | Tech |
 |---|---|
-| Mobile app | React Native + Expo SDK 51 |
+| Mobile app | React Native 0.81 + Expo SDK 54 (React 19; New Architecture on by default) |
 | Language | TypeScript throughout |
 | Backend | Node.js + Express (serverless on Vercel via `@vercel/node`) |
 | ORM | Prisma v5 |
@@ -314,32 +314,40 @@ Then BookTracker loads and asks for their invite code.
 
 ---
 
-## Current Status (as of 2026-05-28)
+## Current Status (as of 2026-05-29)
 
-**Backend + admin panel are deployed, live, and verified. Mobile app code is
-complete and typechecks clean but has NOT yet been run in Expo Go end-to-end —
-the pilot run will be its first real launch.**
+**Backend + admin panel are deployed, live, and verified. The mobile app
+compiles and bundles clean on SDK 54 but has NOT yet been run on a physical
+device — the pilot run will be its first real on-device launch.**
 
 ### Done & verified live
-- Backend on Vercel: all routes, JWT auth, global error handling, invite redeem,
-  participant management, goal auto-check (books/minutes/author/genre). Verified
-  via live end-to-end tests.
-- Admin panel: invites (+ instructions), graphical goal builder, Participants
-  page (search, detail, rename, withdraw), Goal Progress auto-check, CSV exports
-  with invite code/label threaded through, change-password, error banner +
-  session-expiry redirect. Verified in-browser.
-- Database on Neon with 4 migrations applied.
+- Backend on Vercel: all routes, JWT auth, global error handling, invite redeem
+  (atomic), participant management, goal auto-check (books/minutes/author/genre).
+  Verified via live end-to-end tests. Streaks use the participant's local date.
+- Admin panel: invites (+ install/recruit instructions + QR generator), graphical
+  goal builder, Participants page (search, detail, rename, withdraw), Goal Progress
+  auto-check, CSV exports with invite code/label threaded through, change-password,
+  global error banner + session-expiry redirect, shared UI components. Verified
+  in-browser.
+- Mobile app upgraded to **Expo SDK 54** (React 19, RN 0.81, React Navigation v7).
+  `expo install --check` clean, tsc clean, full Metro `expo export` bundle (836
+  modules) builds with no errors. Per-screen load-error/retry handling added.
+- Database on Neon with 6 migrations applied.
 
 ### Next
 1. **Pilot run** — `cd app && npm install && npx expo start --tunnel`; open in
-   Expo Go; walk the full flow (redeem code → log a book → goals → profile).
-   Expect to fix small first-run issues (assets, layout).
-2. Generate invite codes in the admin, hand the QR + codes to a few testers.
+   **Expo Go (must be the SDK 54 build)**; walk the full flow (redeem code → log a
+   book → goals → profile). New Architecture is on by default — watch for any
+   on-device-only quirks.
+2. Generate invite codes in the admin, paste the tunnel link into the Invites-page
+   QR tool, hand the QR + codes to a few testers.
 3. When ready to scale, set up EAS Build (Android free APK / iOS TestFlight).
 
 ### Optional follow-ups noted
-- Harden the `migrate deploy` advisory-lock flake (directUrl, or drop it).
-- Shared web components / replace remaining native `confirm()` dialogs.
+- Harden the `migrate deploy` advisory-lock flake (Prisma `directUrl`, or drop it).
+- From the code review, conscious-tradeoff items left as-is: distinct-book count
+  inconsistency (id vs title), unauthenticated UUID-keyed participant endpoints,
+  open CORS / no login rate-limit, duplicated API types between app and web.
 
 ---
 
@@ -352,3 +360,7 @@ the pilot run will be its first real launch.**
 - Google Books API works without a key but is rate-limited; add a key in prod.
 - Participants are invite-gated and anonymous; keep the master list of
   code → real person OUTSIDE the app.
+- SDK 54 requires participants' Expo Go to be the SDK 54 build; New Architecture
+  is enabled by default. The reading streak relies on the app sending its local
+  date with each log (`localDate`).
+- `@expo/ngrok` is a dependency so `npx expo start --tunnel` works out of the box.
