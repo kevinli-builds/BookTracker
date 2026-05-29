@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { InviteCode, createInvites, deleteInvite, getInvites } from '../api/client';
 import { downloadCsv } from '../lib/csv';
 
@@ -11,6 +12,7 @@ export default function InvitesPage() {
   const [count, setCount] = useState(10);
   const [labelsText, setLabelsText] = useState('');
   const [creating, setCreating] = useState(false);
+  const [appLink, setAppLink] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -84,6 +86,37 @@ export default function InvitesPage() {
           <li><strong>Track who’s joined.</strong> Once redeemed, a code shows as “Used” with the participant’s name here, and the same code appears in every data export so you can match reading activity back to who you paid.</li>
         </ol>
         <p style={s.howtoNote}>Tip: keep your master list of code → real person separate from the app. The app only ever sees the participant ID you assign.</p>
+      </div>
+
+      <div style={s.qrCard}>
+        <strong style={s.howtoTitle}>Make a shareable QR code</strong>
+        <p style={s.hint}>
+          Paste the BookTracker link your developer gives you (it’s printed when they run
+          {' '}<code style={s.code}>npx expo start --tunnel</code>). We’ll turn it into a QR you can drop
+          into your recruitment message or show on screen.
+        </p>
+        <input
+          style={s.linkInput}
+          placeholder="Paste the exp://… or https://… link here"
+          value={appLink}
+          onChange={e => setAppLink(e.target.value)}
+        />
+        {appLink.trim() ? (
+          <div style={s.qrRow}>
+            <div style={s.qrBox}>
+              <QRCodeSVG value={appLink.trim()} size={176} marginSize={2} />
+            </div>
+            <div style={s.qrSide}>
+              <p style={s.qrSideText}>
+                Participants point their phone camera at this (after installing Expo Go), or open the link directly.
+              </p>
+              <button style={s.exportBtn} onClick={() => navigator.clipboard?.writeText(appLink.trim())}>Copy link</button>
+              <p style={s.qrSaveHint}>Save the QR by right-clicking it (or just screenshot this box).</p>
+            </div>
+          </div>
+        ) : (
+          <p style={s.qrEmpty}>Enter a link above to generate its QR code.</p>
+        )}
       </div>
 
       <div style={s.card}>
@@ -183,6 +216,14 @@ const s: Record<string, React.CSSProperties> = {
   howtoList: { margin: '10px 0 0', paddingLeft: 20, fontSize: 13, color: '#374151', lineHeight: 1.7 },
   howtoNote: { fontSize: 12, color: '#6b7280', margin: '10px 0 0', fontStyle: 'italic' },
   code: { background: '#fff', border: '1px solid #d8e0ff', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 12 },
+  qrCard: { background: '#fff', borderRadius: 10, padding: 20, marginBottom: 20 },
+  linkInput: { width: '100%', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: 8, padding: '9px 12px', fontSize: 14, marginBottom: 14 },
+  qrRow: { display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' },
+  qrBox: { background: '#fff', border: '1px solid #eee', borderRadius: 8, padding: 12, lineHeight: 0 },
+  qrSide: { flex: 1, minWidth: 220 },
+  qrSideText: { fontSize: 13, color: '#444', margin: '0 0 10px' },
+  qrSaveHint: { fontSize: 12, color: '#888', margin: '10px 0 0' },
+  qrEmpty: { fontSize: 13, color: '#aaa', margin: 0 },
   card: { background: '#fff', borderRadius: 10, padding: 20, marginBottom: 20 },
   modeRow: { display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' },
   radio: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' },
