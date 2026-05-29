@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -22,19 +22,42 @@ interface AppUser {
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    (async () => {
+  const loadUser = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
       const id = await getUserId();
       const u = await upsertUser(id);
       setUser({ id, displayName: u?.displayName ?? null, hasAccess: !!u?.hasAccess });
-    })();
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (!user) {
+  useEffect(() => { loadUser(); }, [loadUser]);
+
+  if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={appStyles.center}>
         <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <View style={appStyles.center}>
+        <Text style={appStyles.errorText}>
+          Couldn’t connect to BookTracker. Check your internet connection and try again.
+        </Text>
+        <TouchableOpacity style={appStyles.retryBtn} onPress={loadUser}>
+          <Text style={appStyles.retryText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -90,3 +113,10 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const appStyles = StyleSheet.create({
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  errorText: { fontSize: 16, color: '#444', textAlign: 'center', paddingHorizontal: 32, marginBottom: 16, lineHeight: 22 },
+  retryBtn: { backgroundColor: '#1a1a2e', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 28 },
+  retryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+});
