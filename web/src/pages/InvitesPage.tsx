@@ -80,7 +80,7 @@ export default function InvitesPage() {
           <li><strong>Send them your study’s BookTracker link.</strong> When they open that link on their phone it launches BookTracker inside Expo Go — on iPhone they open it in Safari or the Camera app, on Android they tap the link or scan its QR code.</li>
           <li><strong>BookTracker opens.</strong> From here the invite code below takes over.</li>
         </ol>
-        <p style={s.howtoNote}>Don’t have a link/QR to share yet? It’s created once the app is published to Expo — ask your developer for the study’s BookTracker link and QR, then paste them into your recruitment message.</p>
+        <p style={s.howtoNote}>Don’t have a link to share yet? It comes from running the app server — see “Make a shareable QR code” below (there’s a step-by-step for running it yourself). If someone else manages that for you, just ask them for the current link.</p>
 
         <strong style={{ ...s.howtoTitle, ...s.howtoTitle2 }}>Step 2 · Inviting &amp; tracking participants</strong>
         <ol style={s.howtoList}>
@@ -95,7 +95,7 @@ export default function InvitesPage() {
       <div style={s.qrCard}>
         <strong style={s.howtoTitle}>Make a shareable QR code</strong>
         <p style={s.hint}>
-          Paste the BookTracker link your developer gives you (it’s printed when they run
+          Paste the BookTracker link (it’s printed when the app server runs
           {' '}<code style={s.code}>npx expo start --tunnel</code>). We’ll turn it into a QR you can drop
           into your recruitment message or show on screen.
         </p>
@@ -114,13 +114,32 @@ export default function InvitesPage() {
               <p style={s.qrSideText}>
                 Participants point their phone camera at this (after installing Expo Go), or open the link directly.
               </p>
-              <button style={s.exportBtn} onClick={() => navigator.clipboard?.writeText(appLink.trim())}>Copy link</button>
+              <ExportButton onClick={() => navigator.clipboard?.writeText(appLink.trim())}>Copy link</ExportButton>
               <p style={s.qrSaveHint}>Save the QR by right-clicking it (or just screenshot this box).</p>
             </div>
           </div>
         ) : (
           <p style={s.qrEmpty}>Enter a link above to generate its QR code.</p>
         )}
+
+        <details style={s.runSteps}>
+          <summary style={s.runSummary}>Running the study yourself? Show how to start the app server</summary>
+          <div style={s.runBody}>
+            <p style={s.runIntro}>
+              Do this on a computer you control. It hands the app to participants’ phones while it runs —
+              the cloud backend and database are already hosted, so you don’t need any secrets or setup beyond this.
+            </p>
+            <ol style={s.howtoList}>
+              <li><strong>Install Node.js</strong> (version 18 or newer) from <code style={s.code}>nodejs.org</code>, and download the BookTracker project to your computer.</li>
+              <li><strong>Open a terminal in the project</strong> and run:
+                <pre style={s.pre}>cd BookTracker/app{'\n'}npm install        (first time only){'\n'}npx expo start --tunnel</pre>
+                The first tunnel run installs a helper — say yes if asked.
+              </li>
+              <li><strong>Copy the <code style={s.code}>exp://…</code> link</strong> it prints and paste it in the box above to make your QR.</li>
+              <li><strong>Leave that terminal open</strong> while participants join. The link only works while it’s running, and a new link is generated each time you restart — so regenerate the QR here whenever you restart.</li>
+            </ol>
+          </div>
+        </details>
       </div>
 
       <div style={s.card}>
@@ -241,6 +260,11 @@ const s: Record<string, React.CSSProperties> = {
   qrSideText: { fontSize: 13, color: '#444', margin: '0 0 10px' },
   qrSaveHint: { fontSize: 12, color: '#888', margin: '10px 0 0' },
   qrEmpty: { fontSize: 13, color: '#aaa', margin: 0 },
+  runSteps: { marginTop: 18, borderTop: '1px solid #eee', paddingTop: 14 },
+  runSummary: { fontSize: 13, fontWeight: 600, color: '#1a1a2e', cursor: 'pointer' },
+  runBody: { marginTop: 10 },
+  runIntro: { fontSize: 13, color: '#555', margin: '0 0 10px', lineHeight: 1.6 },
+  pre: { background: '#1a1a2e', color: '#f4f4f4', borderRadius: 8, padding: '10px 12px', fontSize: 12.5, overflowX: 'auto', margin: '6px 0' },
   card: { background: '#fff', borderRadius: 10, padding: 20, marginBottom: 20 },
   modeRow: { display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' },
   radio: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' },
