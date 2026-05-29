@@ -7,6 +7,7 @@ import {
   getAdminGoals,
   updateGoal,
 } from '../api/client';
+import { ConfirmDialog, PageHeader } from '../components/ui';
 
 // Friendly goal types. `value` is what's stored in the DB (unchanged); `label`
 // is what the researcher sees; `field` drives which graphical input we show.
@@ -92,6 +93,7 @@ export default function GoalsPage() {
   const [assignResult, setAssignResult] = useState<string | null>(null);
   const [deadline, setDeadline] = useState('');
   const [formError, setFormError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<GoalTemplate | null>(null);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
@@ -144,9 +146,10 @@ export default function GoalsPage() {
     reload();
   };
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Delete goal "${title}"? This cannot be undone.`)) return;
-    await deleteGoal(id);
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deleteGoal(pendingDelete.id);
+    setPendingDelete(null);
     reload();
   };
 
@@ -169,10 +172,9 @@ export default function GoalsPage() {
 
   return (
     <div>
-      <div style={s.headerRow}>
-        <h1 style={s.h1}>Goal Templates</h1>
+      <PageHeader title="Goal Templates">
         <button style={s.primaryBtn} onClick={openNew}>+ New Goal</button>
-      </div>
+      </PageHeader>
 
       <div style={s.assignBox}>
         <strong style={{ fontSize: 14 }}>Random Assignment</strong>
@@ -212,7 +214,7 @@ export default function GoalsPage() {
                 </div>
                 <div style={s.cardActions}>
                   <button style={s.editBtn} onClick={() => openEdit(t)}>Edit</button>
-                  <button style={s.deleteBtn} onClick={() => handleDelete(t.id, t.title)}>Delete</button>
+                  <button style={s.deleteBtn} onClick={() => setPendingDelete(t)}>Delete</button>
                 </div>
               </div>
             );
@@ -278,13 +280,21 @@ export default function GoalsPage() {
           </form>
         </div>
       )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`Delete goal “${pendingDelete.title}”? This cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  h1: { fontSize: 24, fontWeight: 800 },
   primaryBtn: { background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14 },
   assignBox: { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 28, border: '1px solid #eee' },
   assignSub: { fontSize: 13, color: '#666', margin: '4px 0 12px' },

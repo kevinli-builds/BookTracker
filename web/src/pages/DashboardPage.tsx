@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AdminData, getAdminData } from '../api/client';
+import { PageHeader, tableStyles } from '../components/ui';
 
 export default function DashboardPage() {
   const [data, setData] = useState<AdminData | null>(null);
@@ -14,7 +15,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 style={s.h1}>Dashboard</h1>
+      <PageHeader title="Dashboard" />
       <div style={s.statGrid}>
         <StatCard label="Total Users" value={data.totalUsers} />
         <StatCard label="Reading Logs" value={data.totalLogs} />
@@ -83,7 +84,6 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  h1: { fontSize: 24, fontWeight: 800, marginBottom: 20 },
   h2: { fontSize: 18, fontWeight: 700, margin: '32px 0 12px' },
   statGrid: { display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 },
   card: {
@@ -95,10 +95,10 @@ const s: Record<string, React.CSSProperties> = {
   },
   cardVal: { fontSize: 28, fontWeight: 800 },
   cardLabel: { fontSize: 12, color: '#aaa', marginTop: 4 },
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 10, overflow: 'hidden' },
-  th: { background: '#f0f0f7', padding: '10px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700 },
-  tr: { borderTop: '1px solid #eee' },
-  td: { padding: '10px 16px', fontSize: 14 },
+  table: tableStyles.table,
+  th: tableStyles.th,
+  tr: tableStyles.tr,
+  td: { ...tableStyles.td, fontSize: 14 },
   barWrap: { display: 'flex', alignItems: 'center', gap: 8 },
   bar: { height: 10, background: '#1a1a2e', borderRadius: 5, minWidth: 2 },
   barLabel: { fontSize: 12, color: '#555' },

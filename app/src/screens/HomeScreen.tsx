@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { getLogs, getStats, ReadingLog, UserStats } from '../api/client';
+import RetryView from '../components/RetryView';
 
 interface Props {
   userId: string;
@@ -17,11 +18,17 @@ export default function HomeScreen({ userId }: Props) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [logs, setLogs] = useState<ReadingLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
-    const [s, l] = await Promise.all([getStats(userId), getLogs(userId)]);
-    setStats(s);
-    setLogs(l);
+    try {
+      const [s, l] = await Promise.all([getStats(userId), getLogs(userId)]);
+      setStats(s);
+      setLogs(l);
+      setError(false);
+    } catch {
+      setError(true);
+    }
   }, [userId]);
 
   useEffect(() => { load(); }, [load]);
@@ -31,6 +38,10 @@ export default function HomeScreen({ userId }: Props) {
     await load();
     setRefreshing(false);
   };
+
+  if (error && !stats) {
+    return <RetryView onRetry={load} />;
+  }
 
   const header = (
     <View>

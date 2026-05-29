@@ -21,6 +21,7 @@ import {
   getUserGoals,
   submitFeedback,
 } from '../api/client';
+import RetryView from '../components/RetryView';
 
 interface Props {
   userId: string;
@@ -30,15 +31,23 @@ export default function GoalsScreen({ userId }: Props) {
   const [goals, setGoals] = useState<UserGoal[]>([]);
   const [templates, setTemplates] = useState<GoalTemplate[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [feedbackGoal, setFeedbackGoal] = useState<UserGoal | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackRating, setFeedbackRating] = useState('');
 
   const load = useCallback(async () => {
-    const [g, t] = await Promise.all([getUserGoals(userId), getGoalTemplates()]);
-    setGoals(g);
-    setTemplates(t);
+    try {
+      const [g, t] = await Promise.all([getUserGoals(userId), getGoalTemplates()]);
+      setGoals(g);
+      setTemplates(t);
+      setError(false);
+      setLoaded(true);
+    } catch {
+      setError(true);
+    }
   }, [userId]);
 
   useEffect(() => { load(); }, [load]);
@@ -86,6 +95,10 @@ export default function GoalsScreen({ userId }: Props) {
     setFeedbackText('');
     setFeedbackRating('');
   };
+
+  if (error && !loaded) {
+    return <RetryView onRetry={load} />;
+  }
 
   const active = goals.filter(g => g.status === 'active');
   const past = goals.filter(g => g.status !== 'active');

@@ -6,7 +6,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 const router = Router();
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { userId, googleBooksId, title, author, coverUrl, minutesRead, categories } = req.body as {
+  const { userId, googleBooksId, title, author, coverUrl, minutesRead, categories, localDate } = req.body as {
     userId: string;
     googleBooksId: string;
     title: string;
@@ -14,6 +14,7 @@ router.post('/', asyncHandler(async (req, res) => {
     coverUrl?: string;
     minutesRead?: number;
     categories?: string[];
+    localDate?: string;
   };
 
   if (!userId || !googleBooksId || !title || !author) {
@@ -33,7 +34,7 @@ router.post('/', asyncHandler(async (req, res) => {
     },
   });
 
-  await updateStreak(userId);
+  await updateStreak(userId, localDate);
 
   res.status(201).json(log);
 }));

@@ -1,9 +1,6 @@
 // Build a CSV string from an array of flat objects and trigger a browser download.
 export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
-  if (rows.length === 0) {
-    alert('Nothing to export yet.');
-    return;
-  }
+  if (rows.length === 0) return; // nothing to export; callers disable the button when empty
 
   const headers = Object.keys(rows[0]);
   const escape = (value: unknown) => {

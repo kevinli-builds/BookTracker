@@ -56,7 +56,11 @@ export async function logBook(params: {
   minutesRead?: number;
   categories?: string[];
 }): Promise<ReadingLog> {
-  const { data } = await api.post('/logs', params);
+  // Send the device's LOCAL calendar date so streaks are computed in the
+  // participant's timezone, not the server's. Built without Intl for Hermes.
+  const d = new Date();
+  const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const { data } = await api.post('/logs', { ...params, localDate });
   return data;
 }
 

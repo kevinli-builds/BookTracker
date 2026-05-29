@@ -32,12 +32,17 @@ router.post('/redeem', asyncHandler(async (req, res) => {
     create: { id: userId },
   });
 
-  // Mark the code used by this device (no-op if already theirs).
+  // Atomically claim the code: the conditional `usedByUserId: null` guard means
+  // only one device can win if two redeem the same code at the same moment.
   if (!invite.usedByUserId) {
-    await prisma.inviteCode.update({
-      where: { code: normalized },
+    const claim = await prisma.inviteCode.updateMany({
+      where: { code: normalized, usedByUserId: null },
       data: { usedByUserId: userId, usedAt: new Date() },
     });
+    if (claim.count === 0) {
+      res.status(409).json({ error: 'This code has already been used' });
+      return;
+    }
   }
 
   // If the code carried a pre-assigned label and the user has no name yet,

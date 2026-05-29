@@ -11,6 +11,7 @@ import {
   updateUser,
 } from '../api/client';
 import { downloadCsv } from '../lib/csv';
+import { ExportButton, PageHeader, tableStyles } from '../components/ui';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -110,13 +111,10 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div style={s.header}>
-        <h1 style={s.h1}>Participants</h1>
-        <div style={s.exportGroup}>
-          <button style={s.exportBtn} onClick={exportUsers}>Export participants CSV</button>
-          <button style={s.exportBtn} onClick={exportLogs}>Export reading logs CSV</button>
-        </div>
-      </div>
+      <PageHeader title="Participants">
+        <ExportButton onClick={exportUsers}>Export participants CSV</ExportButton>
+        <ExportButton onClick={exportLogs}>Export reading logs CSV</ExportButton>
+      </PageHeader>
 
       <input
         style={s.searchInput}
@@ -341,10 +339,6 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 },
-  h1: { fontSize: 24, fontWeight: 800, margin: 0 },
-  exportGroup: { display: 'flex', gap: 8 },
-  exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   searchInput: { width: '100%', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: 8, padding: '9px 12px', fontSize: 14, marginBottom: 14 },
   toolBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 },
   toolRight: { display: 'flex', alignItems: 'center', gap: 10 },
@@ -352,12 +346,12 @@ const s: Record<string, React.CSSProperties> = {
   dateInput: { border: '1px solid #ddd', borderRadius: 8, padding: '6px 10px', fontSize: 13 },
   primaryBtn: { background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   result: { fontSize: 13, color: '#22c55e', marginBottom: 10 },
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 10, overflow: 'hidden' },
-  th: { background: '#f0f0f7', padding: '10px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700 },
-  tr: { borderTop: '1px solid #eee' },
-  trSelected: { borderTop: '1px solid #eee', background: '#f0f4ff' },
+  table: tableStyles.table,
+  th: tableStyles.th,
+  tr: tableStyles.tr,
+  trSelected: { ...tableStyles.tr, background: '#f0f4ff' },
   trWithdrawn: { opacity: 0.55 },
-  td: { padding: '10px 16px', fontSize: 13 },
+  td: tableStyles.td,
   mono: { fontFamily: 'monospace', fontSize: 12, fontWeight: 700 },
   labelTag: { background: '#eef2ff', color: '#3730a3', borderRadius: 5, padding: '1px 6px', fontSize: 11, marginLeft: 8 },
   activeTag: { background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },

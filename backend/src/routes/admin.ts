@@ -55,8 +55,8 @@ router.get('/users', asyncHandler(async (_req, res) => {
 // Edit a participant: rename and/or change status (active | withdrawn).
 router.patch('/users/:id', asyncHandler(async (req, res) => {
   const { displayName, status } = req.body as { displayName?: string; status?: string };
-  const data: { displayName?: string; status?: string } = {};
-  if (typeof displayName === 'string') data.displayName = displayName.trim() || null as unknown as string;
+  const data: { displayName?: string | null; status?: string } = {};
+  if (typeof displayName === 'string') data.displayName = displayName.trim() || null;
   if (status === 'active' || status === 'withdrawn') data.status = status;
   if (Object.keys(data).length === 0) { res.status(400).json({ error: 'Nothing to update' }); return; }
 

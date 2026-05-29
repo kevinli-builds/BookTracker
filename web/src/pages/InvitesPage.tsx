@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { InviteCode, createInvites, deleteInvite, getInvites } from '../api/client';
 import { downloadCsv } from '../lib/csv';
+import { ConfirmDialog, ExportButton, PageHeader, tableStyles } from '../components/ui';
 
 type Mode = 'count' | 'labels';
 
@@ -12,7 +13,9 @@ export default function InvitesPage() {
   const [count, setCount] = useState(10);
   const [labelsText, setLabelsText] = useState('');
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [appLink, setAppLink] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<InviteCode | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -22,11 +25,12 @@ export default function InvitesPage() {
   useEffect(load, []);
 
   const handleCreate = async () => {
+    setCreateError('');
     setCreating(true);
     try {
       if (mode === 'labels') {
         const labels = labelsText.split('\n').map(l => l.trim()).filter(Boolean);
-        if (labels.length === 0) { alert('Enter at least one participant label, one per line.'); return; }
+        if (labels.length === 0) { setCreateError('Enter at least one participant label, one per line.'); return; }
         await createInvites({ labels });
         setLabelsText('');
       } else {
@@ -38,10 +42,11 @@ export default function InvitesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this unused code?')) return;
-    await deleteInvite(id);
-    setInvites(prev => prev.filter(i => i.id !== id));
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deleteInvite(pendingDelete.id);
+    setInvites(prev => prev.filter(i => i.id !== pendingDelete.id));
+    setPendingDelete(null);
   };
 
   const copy = (code: string) => navigator.clipboard?.writeText(code);
@@ -64,10 +69,9 @@ export default function InvitesPage() {
 
   return (
     <div>
-      <div style={s.header}>
-        <h1 style={s.h1}>Invite Codes</h1>
-        <button style={s.exportBtn} onClick={exportCsv} disabled={invites.length === 0}>Export codes CSV</button>
-      </div>
+      <PageHeader title="Invite Codes">
+        <ExportButton onClick={exportCsv} disabled={invites.length === 0}>Export codes CSV</ExportButton>
+      </PageHeader>
 
       <div style={s.howto}>
         <strong style={s.howtoTitle}>Step 1 · Getting the app onto a participant’s phone</strong>
@@ -156,6 +160,7 @@ export default function InvitesPage() {
           </>
         )}
 
+        {createError && <p style={s.createError}>{createError}</p>}
         <button style={s.primaryBtn} onClick={handleCreate} disabled={creating}>
           {creating ? 'Generating…' : 'Generate codes'}
         </button>
@@ -190,7 +195,7 @@ export default function InvitesPage() {
                 <td style={{ ...s.td, textAlign: 'right' }}>
                   <button style={s.linkBtn} onClick={() => copy(i.code)}>Copy</button>
                   {!i.usedByUserId && (
-                    <button style={{ ...s.linkBtn, color: '#e74c3c' }} onClick={() => handleDelete(i.id)}>Delete</button>
+                    <button style={{ ...s.linkBtn, color: '#e74c3c' }} onClick={() => setPendingDelete(i)}>Delete</button>
                   )}
                 </td>
               </tr>
@@ -202,14 +207,26 @@ export default function InvitesPage() {
       {!loading && invites.length === 0 && (
         <p style={{ color: '#999', marginTop: 24, textAlign: 'center' }}>No codes yet — generate some above.</p>
       )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`Delete unused code ${pendingDelete.code}?`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 },
-  h1: { fontSize: 24, fontWeight: 800, margin: 0 },
-  exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
+  table: tableStyles.table,
+  th: tableStyles.th,
+  tr: tableStyles.tr,
+  td: tableStyles.td,
+  createError: { color: '#ef4444', fontSize: 13, margin: '0 0 10px' },
   howto: { background: '#f0f4ff', border: '1px solid #d8e0ff', borderRadius: 10, padding: '16px 20px', marginBottom: 20 },
   howtoTitle: { fontSize: 14, color: '#1a1a2e', display: 'block' },
   howtoTitle2: { marginTop: 18 },
@@ -232,10 +249,6 @@ const s: Record<string, React.CSSProperties> = {
   numInput: { width: 120, border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px', fontSize: 14, marginBottom: 12, display: 'block' },
   primaryBtn: { background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 14 },
   meta: { fontSize: 13, color: '#666', marginBottom: 12 },
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 10, overflow: 'hidden' },
-  th: { background: '#f0f0f7', padding: '10px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700 },
-  tr: { borderTop: '1px solid #eee' },
-  td: { padding: '10px 16px', fontSize: 13 },
   mono: { fontFamily: 'monospace', fontSize: 14, fontWeight: 700, letterSpacing: 1 },
   used: { color: '#888', fontSize: 12, fontWeight: 600 },
   available: { color: '#22c55e', fontSize: 12, fontWeight: 600 },

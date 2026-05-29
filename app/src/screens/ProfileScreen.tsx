@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { UserStats, getStats, upsertUser } from '../api/client';
+import RetryView from '../components/RetryView';
 
 interface Props {
   userId: string;
@@ -20,13 +21,19 @@ interface Props {
 export default function ProfileScreen({ userId, displayName, onNameChange }: Props) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(displayName ?? '');
   const [savingName, setSavingName] = useState(false);
 
   const load = useCallback(async () => {
-    const s = await getStats(userId);
-    setStats(s);
+    try {
+      const s = await getStats(userId);
+      setStats(s);
+      setError(false);
+    } catch {
+      setError(true);
+    }
   }, [userId]);
 
   useEffect(() => { load(); }, [load]);
@@ -49,6 +56,10 @@ export default function ProfileScreen({ userId, displayName, onNameChange }: Pro
       setSavingName(false);
     }
   };
+
+  if (error && !stats) {
+    return <RetryView onRetry={load} />;
+  }
 
   if (!stats) {
     return <View style={styles.center}><Text>Loading...</Text></View>;

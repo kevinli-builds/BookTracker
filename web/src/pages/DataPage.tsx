@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AdminData, GoalProgress, getAdminData, getGoalProgress } from '../api/client';
 import { downloadCsv } from '../lib/csv';
+import { ExportButton, PageHeader, tableStyles } from '../components/ui';
 
 export default function DataPage() {
   const [data, setData] = useState<AdminData | null>(null);
@@ -70,7 +71,7 @@ export default function DataPage() {
 
   return (
     <div>
-      <h1 style={s.h1}>Research Data</h1>
+      <PageHeader title="Research Data" />
 
       <div style={s.tabs}>
         {(['progress', 'feedback', 'goals'] as const).map(t => (
@@ -94,7 +95,7 @@ export default function DataPage() {
               Auto-checked against reading logged since each goal was assigned.
               {readyToComplete > 0 && ` ${readyToComplete} met but not yet marked complete.`}
             </p>
-            <button style={s.exportBtn} onClick={exportProgress} disabled={!progress || progress.length === 0}>Export CSV</button>
+            <ExportButton onClick={exportProgress} disabled={!progress || progress.length === 0}>Export CSV</ExportButton>
           </div>
           {!progress || progress.length === 0 ? (
             <p style={s.empty}>No active or completed goals yet.</p>
@@ -141,7 +142,7 @@ export default function DataPage() {
         <div>
           <div style={s.tabHeader}>
             <p style={s.count}>{data.recentFeedback.length} feedback entries (most recent 50)</p>
-            <button style={s.exportBtn} onClick={exportFeedback}>Export CSV</button>
+            <ExportButton onClick={exportFeedback}>Export CSV</ExportButton>
           </div>
           {data.recentFeedback.length === 0 ? (
             <p style={s.empty}>No feedback submitted yet.</p>
@@ -183,7 +184,7 @@ export default function DataPage() {
         <div>
           <div style={s.tabHeader}>
             <p style={s.count}>{data.goalCompletionRates.length} goals</p>
-            <button style={s.exportBtn} onClick={exportGoals}>Export CSV</button>
+            <ExportButton onClick={exportGoals}>Export CSV</ExportButton>
           </div>
           <table style={s.table}>
             <thead>
@@ -229,7 +230,6 @@ function Stars({ rating }: { rating: number }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  h1: { fontSize: 24, fontWeight: 800, marginBottom: 16 },
   tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #eee' },
   tab: {
     background: 'none',
@@ -245,18 +245,17 @@ const s: Record<string, React.CSSProperties> = {
   tabActive: { color: '#1a1a2e', borderBottomColor: '#1a1a2e' },
   tabBadge: { background: '#22c55e', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700, marginLeft: 6 },
   tabHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  exportBtn: { background: '#fff', color: '#1a1a2e', border: '1px solid #1a1a2e', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   count: { fontSize: 13, color: '#666', margin: 0 },
   empty: { color: '#999', textAlign: 'center', marginTop: 32 },
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 10, overflow: 'hidden' },
-  th: { background: '#f0f0f7', padding: '10px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700 },
-  tr: { borderTop: '1px solid #eee' },
-  trHighlight: { borderTop: '1px solid #eee', background: '#f0fdf4' },
+  table: tableStyles.table,
+  th: tableStyles.th,
+  tr: tableStyles.tr,
+  trHighlight: { ...tableStyles.tr, background: '#f0fdf4' },
   metYes: { color: '#16a34a', fontWeight: 700 },
   metNo: { color: '#888' },
   completedTag: { background: '#e0e7ff', color: '#3730a3', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   readyTag: { background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
-  td: { padding: '10px 16px', fontSize: 13, verticalAlign: 'top' },
+  td: { ...tableStyles.td, verticalAlign: 'top' },
   mono: { fontFamily: 'monospace', fontSize: 12 },
   codeTag: { fontFamily: 'monospace', fontSize: 11, background: '#f0f0f7', borderRadius: 4, padding: '1px 5px', marginLeft: 6 },
   barWrap: { display: 'flex', alignItems: 'center', gap: 8 },
