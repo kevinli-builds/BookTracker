@@ -23,7 +23,7 @@ label baked into their invite code) — no passwords, minimal PII.
 | Backend | Node.js + Express (serverless on Vercel via `@vercel/node`) |
 | ORM | Prisma v5 |
 | Database | PostgreSQL (Neon.tech free tier, pooled connection) |
-| Book data | Google Books API (no key needed for basic search) |
+| Book data | Open Library API (free, no key); optional Google Books if GOOGLE_BOOKS_API_KEY is set |
 | Admin auth | JWT (provisioner only; 7-day expiry) |
 | Participant gating | Single-use invite codes (no passwords) |
 | Hosting | Vercel — backend + admin panel are separate Vercel projects |
@@ -357,7 +357,10 @@ device — the pilot run will be its first real on-device launch.**
   build calls it at deploy time.
 - Apply schema changes with `prisma migrate dev` locally (against Neon) before
   pushing, so prod `migrate deploy` is just a confirmation.
-- Google Books API works without a key but is rate-limited; add a key in prod.
+- Book search uses Open Library (no key, reliable). Google Books is only used if
+  `GOOGLE_BOOKS_API_KEY` is set — keyless Google Books shares a global anonymous
+  quota that is routinely exhausted (returns 429), which is why we defaulted to
+  Open Library. `/books/search` returns a real 502 on failure, never a silent `[]`.
 - Participants are invite-gated and anonymous; keep the master list of
   code → real person OUTSIDE the app.
 - SDK 54 requires participants' Expo Go to be the SDK 54 build; New Architecture
