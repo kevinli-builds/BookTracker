@@ -54,6 +54,7 @@ export async function logBook(params: {
   author: string;
   coverUrl?: string | null;
   minutesRead?: number;
+  pageCount?: number | null;
   categories?: string[];
 }): Promise<ReadingLog> {
   // Send the device's LOCAL calendar date so streaks are computed in the
@@ -91,6 +92,7 @@ export interface UserGoal {
   completedAt: string | null;
   deadline: string | null;
   template: GoalTemplate;
+  hasFeedback?: boolean;
 }
 
 export async function getGoalTemplates(): Promise<GoalTemplate[]> {

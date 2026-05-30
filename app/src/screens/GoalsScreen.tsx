@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -38,6 +38,8 @@ export default function GoalsScreen({ userId }: Props) {
   const [feedbackGoal, setFeedbackGoal] = useState<UserGoal | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackRating, setFeedbackRating] = useState('');
+  // Completed goals the participant chose to skip giving feedback on this session.
+  const dismissedFeedback = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -46,6 +48,10 @@ export default function GoalsScreen({ userId }: Props) {
       setTemplates(t);
       setError(false);
       setLoaded(true);
+      // Prompt for feedback on a goal that auto-completed (or was completed) but
+      // has no feedback yet — unless it's already showing or was skipped.
+      const pending = g.find(x => x.status === 'completed' && !x.hasFeedback && !dismissedFeedback.current.has(x.id));
+      setFeedbackGoal(prev => prev ?? pending ?? null);
     } catch {
       setError(true);
     }
@@ -125,7 +131,7 @@ export default function GoalsScreen({ userId }: Props) {
         renderItem={({ item }) => (
           <GoalCard
             goal={item}
-            onComplete={() => handleComplete(item)}
+            onComplete={item.template.type === 'custom' ? () => handleComplete(item) : undefined}
             onAbandon={() => handleAbandon(item)}
           />
         )}
@@ -198,7 +204,10 @@ export default function GoalsScreen({ userId }: Props) {
             <TouchableOpacity style={styles.logBtn} onPress={handleFeedbackSubmit}>
               <Text style={styles.logBtnText}>Submit Feedback</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFeedbackGoal(null)}>
+            <TouchableOpacity onPress={() => {
+              if (feedbackGoal) dismissedFeedback.current.add(feedbackGoal.id);
+              setFeedbackGoal(null);
+            }}>
               <Text style={styles.cancel}>Skip</Text>
             </TouchableOpacity>
           </View>
@@ -234,11 +243,16 @@ function GoalCard({
       {goal.deadline && (
         <Text style={styles.deadline}>Due {new Date(goal.deadline).toLocaleDateString()}</Text>
       )}
+      {goal.status === 'active' && !onComplete && (
+        <Text style={styles.autoNote}>✓ Completes automatically as you log books</Text>
+      )}
       {goal.status === 'active' && (
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.completeBtn} onPress={onComplete}>
-            <Text style={styles.completeBtnText}>Mark Complete</Text>
-          </TouchableOpacity>
+          {onComplete && (
+            <TouchableOpacity style={styles.completeBtn} onPress={onComplete}>
+              <Text style={styles.completeBtnText}>Mark Complete</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.abandonBtn} onPress={onAbandon}>
             <Text style={styles.abandonBtnText}>Abandon</Text>
           </TouchableOpacity>
@@ -262,6 +276,7 @@ const styles = StyleSheet.create({
   goalDesc: { fontSize: 13, color: '#555', marginBottom: 8 },
   assignedTag: { fontSize: 11, color: '#9333ea', marginBottom: 4 },
   deadline: { fontSize: 12, color: '#888', marginBottom: 8 },
+  autoNote: { fontSize: 12, color: '#16a34a', marginBottom: 8, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   completeBtn: { flex: 1, backgroundColor: '#22c55e', borderRadius: 8, padding: 8, alignItems: 'center' },
   completeBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },

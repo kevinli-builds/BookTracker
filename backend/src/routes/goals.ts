@@ -42,10 +42,11 @@ router.post('/self', asyncHandler(async (req, res) => {
 router.get('/:userId', asyncHandler(async (req, res) => {
   const goals = await prisma.userGoal.findMany({
     where: { userId: req.params.userId },
-    include: { template: true },
+    include: { template: true, _count: { select: { feedbacks: true } } },
     orderBy: { assignedAt: 'desc' },
   });
-  res.json(goals);
+  // Expose hasFeedback so the app can prompt for feedback on auto-completed goals.
+  res.json(goals.map(({ _count, ...g }) => ({ ...g, hasFeedback: _count.feedbacks > 0 })));
 }));
 
 router.patch('/:goalId/complete', asyncHandler(async (req, res) => {

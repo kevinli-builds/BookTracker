@@ -37,6 +37,7 @@ model ReadingLog {
   author        String
   coverUrl      String?
   categories    String[] @default([])
+  pageCount     Int?
   minutesRead   Int      @default(0)
   loggedAt      DateTime @default(now())
   user          User     @relation(fields: [userId], references: [id])

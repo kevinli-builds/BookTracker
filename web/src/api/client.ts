@@ -138,6 +138,20 @@ export async function getAdminGoals(): Promise<GoalTemplate[]> {
   return data;
 }
 
+export interface BookResult {
+  id: string;
+  title: string;
+  author: string;
+  coverUrl: string | null;
+  pageCount: number | null;
+}
+
+// Used by the goal builder to pick a specific book for "read a certain book".
+export async function searchBooks(q: string): Promise<BookResult[]> {
+  const { data } = await api.get('/books/search', { params: { q } });
+  return data;
+}
+
 export async function createGoal(payload: Omit<GoalTemplate, 'id' | 'createdAt' | '_count'>): Promise<GoalTemplate> {
   const { data } = await api.post('/admin/goals', payload);
   return data;

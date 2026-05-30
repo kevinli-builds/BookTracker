@@ -1,18 +1,22 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import {
+  BookResult,
   GoalTemplate,
   assignGoals,
   createGoal,
   deleteGoal,
   getAdminGoals,
+  searchBooks,
   updateGoal,
 } from '../api/client';
 import { ConfirmDialog, PageHeader } from '../components/ui';
 
 // Friendly goal types. `value` is what's stored in the DB (unchanged); `label`
 // is what the researcher sees; `field` drives which graphical input we show.
-const GOAL_TYPES: { value: string; label: string; field: 'count' | 'minutes' | 'genre' | 'author' | 'none' }[] = [
+const GOAL_TYPES: { value: string; label: string; field: 'count' | 'pages' | 'minutes' | 'genre' | 'author' | 'book' | 'none' }[] = [
   { value: 'books_count', label: 'Read a number of books', field: 'count' },
+  { value: 'pages', label: 'Read a number of pages', field: 'pages' },
+  { value: 'specific_book', label: 'Read a specific book', field: 'book' },
   { value: 'minutes', label: 'Read for a number of minutes', field: 'minutes' },
   { value: 'genre', label: 'Read a specific genre', field: 'genre' },
   { value: 'author', label: 'Read books by an author', field: 'author' },
@@ -21,6 +25,8 @@ const GOAL_TYPES: { value: string; label: string; field: 'count' | 'minutes' | '
 
 const SHORT_LABEL: Record<string, string> = {
   books_count: 'Books',
+  pages: 'Pages',
+  specific_book: 'Book',
   minutes: 'Minutes',
   genre: 'Genre',
   author: 'Author',
@@ -33,9 +39,12 @@ interface FormState {
   type: string;
   randomPool: boolean;
   count: string;
+  pages: string;
   minutes: string;
   genre: string;
   author: string;
+  bookId: string;
+  bookTitle: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -44,9 +53,12 @@ const EMPTY_FORM: FormState = {
   type: 'books_count',
   randomPool: false,
   count: '',
+  pages: '',
   minutes: '',
   genre: '',
   author: '',
+  bookId: '',
+  bookTitle: '',
 };
 
 // Build the stored criteria object from the graphical fields, with validation.
@@ -57,6 +69,11 @@ function buildCriteria(form: FormState): { criteria: Record<string, unknown> } |
       const n = parseInt(form.count, 10);
       if (!n || n < 1) return { error: 'Enter how many books to read (1 or more).' };
       return { criteria: { count: n } };
+    }
+    case 'pages': {
+      const n = parseInt(form.pages, 10);
+      if (!n || n < 1) return { error: 'Enter how many pages to read (1 or more).' };
+      return { criteria: { pages: n } };
     }
     case 'minutes': {
       const n = parseInt(form.minutes, 10);
@@ -69,6 +86,9 @@ function buildCriteria(form: FormState): { criteria: Record<string, unknown> } |
     case 'author':
       if (!form.author.trim()) return { error: 'Enter an author name.' };
       return { criteria: { author: form.author.trim() } };
+    case 'book':
+      if (!form.bookId) return { error: 'Search for and pick the specific book.' };
+      return { criteria: { googleBooksId: form.bookId, title: form.bookTitle } };
     default:
       return { criteria: {} };
   }
@@ -78,9 +98,11 @@ function buildCriteria(form: FormState): { criteria: Record<string, unknown> } |
 function targetSummary(t: GoalTemplate): string | null {
   const c = (t.criteria ?? {}) as Record<string, unknown>;
   if (typeof c.count === 'number') return `${c.count} book${c.count === 1 ? '' : 's'}`;
+  if (typeof c.pages === 'number') return `${c.pages} pages`;
   if (typeof c.minutes === 'number') return `${c.minutes} minutes`;
   if (typeof c.genre === 'string' && c.genre) return `Genre: ${c.genre}`;
   if (typeof c.author === 'string' && c.author) return `Author: ${c.author}`;
+  if (typeof c.googleBooksId === 'string' && c.googleBooksId) return `Book: ${typeof c.title === 'string' ? c.title : 'selected'}`;
   return null;
 }
 
@@ -97,13 +119,33 @@ export default function GoalsPage() {
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
+  // Book search state for the "read a specific book" goal type.
+  const [bookQuery, setBookQuery] = useState('');
+  const [bookResults, setBookResults] = useState<BookResult[]>([]);
+  const [bookSearching, setBookSearching] = useState(false);
+
+  const runBookSearch = async () => {
+    if (!bookQuery.trim()) return;
+    setBookSearching(true);
+    try {
+      setBookResults(await searchBooks(bookQuery.trim()));
+    } catch {
+      setBookResults([]);
+    } finally {
+      setBookSearching(false);
+    }
+  };
+
   const reload = () => getAdminGoals().then(setTemplates).finally(() => setLoading(false));
   useEffect(() => { reload(); }, []);
+
+  const resetBookSearch = () => { setBookQuery(''); setBookResults([]); };
 
   const openNew = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
     setFormError('');
+    resetBookSearch();
     setShowForm(true);
   };
 
@@ -116,11 +158,15 @@ export default function GoalsPage() {
       type: t.type,
       randomPool: t.randomPool,
       count: typeof c.count === 'number' ? String(c.count) : '',
+      pages: typeof c.pages === 'number' ? String(c.pages) : '',
       minutes: typeof c.minutes === 'number' ? String(c.minutes) : '',
       genre: typeof c.genre === 'string' ? c.genre : '',
       author: typeof c.author === 'string' ? c.author : '',
+      bookId: typeof c.googleBooksId === 'string' ? c.googleBooksId : '',
+      bookTitle: typeof c.title === 'string' ? c.title : '',
     });
     setFormError('');
+    resetBookSearch();
     setShowForm(true);
   };
 
@@ -244,6 +290,53 @@ export default function GoalsPage() {
                 <input style={s.input} type="number" min={1} value={form.count} placeholder="e.g. 5" onChange={e => setForm(f => ({ ...f, count: e.target.value }))} />
               </>
             )}
+            {activeField === 'pages' && (
+              <>
+                <label style={s.label}>Number of pages</label>
+                <input style={s.input} type="number" min={1} value={form.pages} placeholder="e.g. 1000" onChange={e => setForm(f => ({ ...f, pages: e.target.value }))} />
+                <p style={s.fieldHint}>Counts each logged book’s page count. Books with no known length count as 0.</p>
+              </>
+            )}
+            {activeField === 'book' && (
+              <>
+                <label style={s.label}>Which book?</label>
+                {form.bookId ? (
+                  <div style={s.pickedBook}>
+                    <span>📖 {form.bookTitle}</span>
+                    <button type="button" style={s.changeBookBtn} onClick={() => { setForm(f => ({ ...f, bookId: '', bookTitle: '' })); resetBookSearch(); }}>Change</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={s.bookSearchRow}>
+                      <input
+                        style={s.input}
+                        value={bookQuery}
+                        placeholder="Search by title or author"
+                        onChange={e => setBookQuery(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); runBookSearch(); } }}
+                      />
+                      <button type="button" style={s.searchBtn} onClick={runBookSearch} disabled={bookSearching}>
+                        {bookSearching ? '…' : 'Search'}
+                      </button>
+                    </div>
+                    {bookResults.length > 0 && (
+                      <div style={s.bookResults}>
+                        {bookResults.map(b => (
+                          <button
+                            type="button"
+                            key={b.id}
+                            style={s.bookResult}
+                            onClick={() => { setForm(f => ({ ...f, bookId: b.id, bookTitle: b.title })); setBookResults([]); }}
+                          >
+                            <strong>{b.title}</strong>{b.author ? ` — ${b.author}` : ''}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
             {activeField === 'minutes' && (
               <>
                 <label style={s.label}>Number of minutes</label>
@@ -318,6 +411,13 @@ const s: Record<string, React.CSSProperties> = {
   label: { fontSize: 13, fontWeight: 600, color: '#555', marginTop: 6 },
   input: { border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px', fontSize: 14, width: '100%', boxSizing: 'border-box' },
   customHint: { fontSize: 13, color: '#888', background: '#f7f7fb', borderRadius: 8, padding: 10, marginTop: 6 },
+  fieldHint: { fontSize: 12, color: '#888', margin: '4px 0 0' },
+  bookSearchRow: { display: 'flex', gap: 8 },
+  searchBtn: { background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
+  bookResults: { border: '1px solid #eee', borderRadius: 8, marginTop: 8, maxHeight: 200, overflowY: 'auto' },
+  bookResult: { display: 'block', width: '100%', textAlign: 'left', background: '#fff', border: 'none', borderBottom: '1px solid #f0f0f0', padding: '8px 10px', cursor: 'pointer', fontSize: 13 },
+  pickedBook: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: '#f0f4ff', borderRadius: 8, padding: '10px 12px', fontSize: 14, marginTop: 4 },
+  changeBookBtn: { background: 'transparent', border: '1px solid #c7d2fe', color: '#3730a3', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
   checkRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 14, cursor: 'pointer' },
   formError: { color: '#ef4444', fontSize: 13, marginTop: 10 },
   modalBtns: { display: 'flex', gap: 10, marginTop: 16 },

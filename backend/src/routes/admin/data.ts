@@ -29,7 +29,7 @@ router.get('/goal-progress', asyncHandler(async (_req, res) => {
   const userIds = [...new Set(userGoals.map(g => g.userId))];
   const logs = await prisma.readingLog.findMany({
     where: { userId: { in: userIds } },
-    select: { userId: true, googleBooksId: true, author: true, minutesRead: true, loggedAt: true, categories: true },
+    select: { userId: true, googleBooksId: true, author: true, minutesRead: true, pageCount: true, loggedAt: true, categories: true },
   });
 
   const logsByUser = new Map<string, typeof logs>();
