@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   FlatList,
   Image,
@@ -31,7 +32,9 @@ export default function HomeScreen({ userId }: Props) {
     }
   }, [userId]);
 
-  useEffect(() => { load(); }, [load]);
+  // Refetch every time the tab regains focus (tabs stay mounted, so a plain
+  // mount effect would show stale data after logging a book on another tab).
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
