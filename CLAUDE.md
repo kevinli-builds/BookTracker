@@ -102,7 +102,6 @@ BookTracker/
 │           ├── InvitesPage.tsx       Invite instructions + generate/copy/revoke codes + export
 │           ├── UsersPage.tsx         "Participants": search, code/label/status, detail modal, mgmt
 │           └── DataPage.tsx          Tabs: Goal Progress (auto-check) | Feedback | Goal Outcomes
-├── render.yaml                     Legacy Render config — UNUSED (we deploy on Vercel)
 └── .gitignore
 ```
 
