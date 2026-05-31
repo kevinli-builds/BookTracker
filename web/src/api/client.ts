@@ -76,6 +76,7 @@ export interface AdminUser {
   id: string;
   displayName: string | null;
   status: 'active' | 'withdrawn';
+  studyGroup: string | null;
   createdAt: string;
   streak: { currentStreak: number; longestStreak: number } | null;
   inviteCode: InviteRef | null;
@@ -87,15 +88,25 @@ export async function getUsers(): Promise<AdminUser[]> {
   return data;
 }
 
-export async function updateUser(id: string, payload: { displayName?: string; status?: 'active' | 'withdrawn' }): Promise<AdminUser> {
+export async function updateUser(
+  id: string,
+  payload: { displayName?: string; status?: 'active' | 'withdrawn'; studyGroup?: string | null },
+): Promise<AdminUser> {
   const { data } = await api.patch(`/admin/users/${id}`, payload);
   return data;
+}
+
+// Randomly distribute participants across named groups (balanced).
+export async function assignGroups(payload: { groups: string[]; target: 'all' | 'unassigned' | 'selected'; userIds?: string[] }) {
+  const { data } = await api.post('/admin/assign-groups', payload);
+  return data as { assigned: number; byGroup: Record<string, number> };
 }
 
 export interface UserDetail {
   id: string;
   displayName: string | null;
   status: 'active' | 'withdrawn';
+  studyGroup: string | null;
   createdAt: string;
   inviteCode: InviteRef | null;
   streak: { currentStreak: number; longestStreak: number; lastReadDate: string | null } | null;
@@ -188,7 +199,7 @@ export interface AdminData {
     text: string | null;
     createdAt: string;
     userGoal: { template: { title: string } };
-    user: { displayName: string | null; inviteCode: InviteRef | null } | null;
+    user: { displayName: string | null; studyGroup: string | null; inviteCode: InviteRef | null } | null;
   }[];
 }
 
@@ -204,6 +215,7 @@ export interface GoalProgress {
   participant: string | null;
   inviteCode: string | null;
   participantLabel: string | null;
+  studyGroup: string | null;
   userId: string;
   goalTitle: string;
   type: string;
@@ -228,7 +240,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 export interface AdminReadingLog {
   id: string;
   userId: string;
-  user: { displayName: string | null; inviteCode: InviteRef | null };
+  user: { displayName: string | null; studyGroup: string | null; inviteCode: InviteRef | null };
   googleBooksId: string;
   title: string;
   author: string;

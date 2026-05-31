@@ -15,8 +15,20 @@ export default function ParticipantDetail({
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(detail.displayName ?? '');
   const [busy, setBusy] = useState(false);
+  const [groupDraft, setGroupDraft] = useState(detail.studyGroup ?? '');
 
   const refresh = async () => onChanged(await getUserDetail(detail.id));
+
+  const saveGroup = async () => {
+    if (busy || groupDraft.trim() === (detail.studyGroup ?? '')) return;
+    setBusy(true);
+    try {
+      await updateUser(detail.id, { studyGroup: groupDraft.trim() });
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const saveName = async () => {
     if (busy) return;
@@ -72,6 +84,17 @@ export default function ParticipantDetail({
           <button style={detail.status === 'active' ? s.withdrawBtn : s.reactivateBtn} onClick={toggleStatus} disabled={busy}>
             {detail.status === 'active' ? 'Mark withdrawn' : 'Reactivate'}
           </button>
+        </div>
+
+        <div style={s.groupRow}>
+          <span>Study group:</span>
+          <input
+            style={s.groupInput}
+            value={groupDraft}
+            onChange={e => setGroupDraft(e.target.value)}
+            placeholder="e.g. tracking / control (blank = none)"
+          />
+          <button style={s.smallBtn} onClick={saveGroup} disabled={busy || groupDraft.trim() === (detail.studyGroup ?? '')}>Save</button>
         </div>
 
         <div style={s.statGrid}>
@@ -150,6 +173,8 @@ const s: Record<string, React.CSSProperties> = {
   smallBtn: { background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13 },
   smallGhostBtn: { background: '#f0f0f0', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13 },
   statusRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8f8fb', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14 },
+  groupRow: { display: 'flex', alignItems: 'center', gap: 10, background: '#f8f8fb', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14 },
+  groupInput: { flex: 1, border: '1px solid #ddd', borderRadius: 8, padding: '7px 10px', fontSize: 14 },
   activeTag: { background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   withdrawnTag: { background: '#fee2e2', color: '#b91c1c', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   withdrawBtn: { background: '#fff1f2', color: '#ef4444', border: '1px solid #fecdd3', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600 },

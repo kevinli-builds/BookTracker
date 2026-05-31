@@ -4,6 +4,7 @@ import {
   GoalTemplate,
   UserDetail,
   assignGoals,
+  assignGroups,
   getAdminGoals,
   getAllLogs,
   getUserDetail,
@@ -23,6 +24,10 @@ export default function UsersPage() {
   const [deadline, setDeadline] = useState('');
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<UserDetail | null>(null);
+  const [groupNames, setGroupNames] = useState('tracking, control');
+  const [groupTarget, setGroupTarget] = useState<'unassigned' | 'all' | 'selected'>('unassigned');
+  const [grouping, setGrouping] = useState(false);
+  const [groupResult, setGroupResult] = useState<string | null>(null);
 
   const loadUsers = () => getUsers().then(setUsers);
 
@@ -45,7 +50,8 @@ export default function UsersPage() {
     ? users.filter(u =>
         (u.displayName ?? '').toLowerCase().includes(q) ||
         (u.inviteCode?.label ?? '').toLowerCase().includes(q) ||
-        (u.inviteCode?.code ?? '').toLowerCase().includes(q))
+        (u.inviteCode?.code ?? '').toLowerCase().includes(q) ||
+        (u.studyGroup ?? '').toLowerCase().includes(q))
     : users;
 
   const toggleAll = () => {
@@ -69,6 +75,29 @@ export default function UsersPage() {
     }
   };
 
+  const handleAssignGroups = async () => {
+    const groups = groupNames.split(',').map(g => g.trim()).filter(Boolean);
+    if (groups.length < 2) { setGroupResult('Enter at least two group names, separated by commas.'); return; }
+    if (groupTarget === 'selected' && selected.size === 0) { setGroupResult('Select participants first, or choose a different target.'); return; }
+    setGrouping(true);
+    setGroupResult(null);
+    try {
+      const res = await assignGroups({
+        groups,
+        target: groupTarget,
+        userIds: groupTarget === 'selected' ? Array.from(selected) : undefined,
+      });
+      const summary = Object.entries(res.byGroup).map(([g, n]) => `${g}: ${n}`).join(', ');
+      setGroupResult(`Randomly assigned ${res.assigned} participant(s) — ${summary}.`);
+      setSelected(new Set());
+      await loadUsers();
+    } catch {
+      setGroupResult('Group assignment failed. Try again.');
+    } finally {
+      setGrouping(false);
+    }
+  };
+
   const exportUsers = () => {
     downloadCsv(
       `booktracker-participants-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -76,6 +105,7 @@ export default function UsersPage() {
         invite_code: u.inviteCode?.code ?? '',
         participant_label: u.inviteCode?.label ?? '',
         display_name: u.displayName ?? '',
+        study_group: u.studyGroup ?? '',
         status: u.status,
         user_id: u.id,
         joined: new Date(u.createdAt).toISOString(),
@@ -95,6 +125,7 @@ export default function UsersPage() {
         invite_code: l.user?.inviteCode?.code ?? '',
         participant_label: l.user?.inviteCode?.label ?? '',
         display_name: l.user?.displayName ?? '',
+        study_group: l.user?.studyGroup ?? '',
         user_id: l.userId,
         title: l.title,
         author: l.author,
@@ -118,10 +149,32 @@ export default function UsersPage() {
 
       <input
         style={s.searchInput}
-        placeholder="Search by name, participant ID, or code…"
+        placeholder="Search by name, participant ID, code, or group…"
         value={search}
         onChange={e => setSearch(e.target.value)}
       />
+
+      <div style={s.groupBox}>
+        <strong style={{ fontSize: 14 }}>Study groups</strong>
+        <p style={s.groupSub}>Randomly assign participants to experimental conditions. You can also set or change any individual's group via “Manage”.</p>
+        <div style={s.groupRow}>
+          <input
+            style={{ ...s.input, flex: 1, minWidth: 200 }}
+            value={groupNames}
+            onChange={e => setGroupNames(e.target.value)}
+            placeholder="Group names, comma-separated (e.g. tracking, control)"
+          />
+          <select style={s.input} value={groupTarget} onChange={e => setGroupTarget(e.target.value as typeof groupTarget)}>
+            <option value="unassigned">Ungrouped only</option>
+            <option value="all">All participants</option>
+            <option value="selected">Selected only</option>
+          </select>
+          <button style={s.primaryBtn} onClick={handleAssignGroups} disabled={grouping}>
+            {grouping ? 'Assigning…' : 'Randomly assign'}
+          </button>
+        </div>
+        {groupResult && <p style={s.result}>{groupResult}</p>}
+      </div>
 
       <div style={s.toolBar}>
         <span style={s.meta}>{filtered.length} of {users.length} participants · {selected.size} selected</span>
@@ -150,6 +203,7 @@ export default function UsersPage() {
             </th>
             <th style={s.th}>Code</th>
             <th style={s.th}>Participant</th>
+            <th style={s.th}>Group</th>
             <th style={s.th}>Status</th>
             <th style={s.th}>Logs</th>
             <th style={s.th}>Goals</th>
@@ -169,6 +223,11 @@ export default function UsersPage() {
                 {u.inviteCode?.label && u.inviteCode.label !== u.displayName && (
                   <span style={s.labelTag}>{u.inviteCode.label}</span>
                 )}
+              </td>
+              <td style={s.td}>
+                {u.studyGroup
+                  ? <span style={s.groupTag}>{u.studyGroup}</span>
+                  : <span style={{ color: '#bbb' }}>—</span>}
               </td>
               <td style={s.td}>
                 {u.status === 'withdrawn'
@@ -205,6 +264,11 @@ export default function UsersPage() {
 
 const s: Record<string, React.CSSProperties> = {
   searchInput: { width: '100%', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: 8, padding: '9px 12px', fontSize: 14, marginBottom: 14 },
+  groupBox: { background: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, border: '1px solid #eee' },
+  groupSub: { fontSize: 13, color: '#666', margin: '4px 0 12px' },
+  groupRow: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
+  input: { border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px', fontSize: 14, boxSizing: 'border-box' },
+  groupTag: { background: '#ede9fe', color: '#6d28d9', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   toolBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 },
   toolRight: { display: 'flex', alignItems: 'center', gap: 10 },
   meta: { fontSize: 13, color: '#666' },

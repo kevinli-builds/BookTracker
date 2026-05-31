@@ -52,6 +52,7 @@ router.get('/goal-progress', asyncHandler(async (_req, res) => {
       participant: g.user.displayName,
       inviteCode: g.user.inviteCode?.code ?? null,
       participantLabel: g.user.inviteCode?.label ?? null,
+      studyGroup: g.user.studyGroup ?? null,
       userId: g.userId,
       goalTitle: g.template.title,
       type: g.template.type,

@@ -15,8 +15,10 @@ export const participantInclude = Prisma.validator<Prisma.UserInclude>()({
   _count: { select: { logs: true, userGoals: true } },
 });
 
-// Just enough of a user to label exported/aggregated rows with their identity.
+// Just enough of a user to label exported/aggregated rows with their identity
+// and experimental condition.
 export const userIdentitySelect = Prisma.validator<Prisma.UserSelect>()({
   displayName: true,
+  studyGroup: true,
   inviteCode: { select: inviteCodeSelect },
 });
