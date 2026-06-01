@@ -235,6 +235,59 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await api.post('/admin/change-password', { currentPassword, newPassword });
 }
 
+// ── Check-in survey (admin-configurable) ─────────────────────────────────────
+
+export interface SurveyQuestion {
+  id: string;
+  prompt: string;
+  type: 'number' | 'rating' | 'text';
+  sortOrder: number;
+  required: boolean;
+  active: boolean;
+}
+
+export async function getSurveyConfig(): Promise<{ cadenceDays: number }> {
+  const { data } = await api.get('/admin/survey/config');
+  return data;
+}
+export async function setSurveyCadence(cadenceDays: number) {
+  await api.patch('/admin/survey/config', { cadenceDays });
+}
+export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
+  const { data } = await api.get('/admin/survey/questions');
+  return data;
+}
+export async function createSurveyQuestion(payload: { prompt: string; type: string; required: boolean }): Promise<SurveyQuestion> {
+  const { data } = await api.post('/admin/survey/questions', payload);
+  return data;
+}
+export async function loadStandardQuestions(): Promise<SurveyQuestion[]> {
+  const { data } = await api.post('/admin/survey/questions/standard');
+  return data;
+}
+export async function updateSurveyQuestion(id: string, payload: Partial<Pick<SurveyQuestion, 'prompt' | 'type' | 'required' | 'active' | 'sortOrder'>>): Promise<SurveyQuestion> {
+  const { data } = await api.patch(`/admin/survey/questions/${id}`, payload);
+  return data;
+}
+export async function deleteSurveyQuestion(id: string) {
+  await api.delete(`/admin/survey/questions/${id}`);
+}
+
+export interface SurveyResponse {
+  id: string;
+  userId: string;
+  participant: string | null;
+  inviteCode: string | null;
+  participantLabel: string | null;
+  studyGroup: string | null;
+  submittedAt: string;
+  answers: Record<string, number | string>;
+}
+export async function getSurveyResponses(): Promise<{ questions: { id: string; prompt: string }[]; responses: SurveyResponse[] }> {
+  const { data } = await api.get('/admin/surveys');
+  return data;
+}
+
 // ── Reading Logs (raw export) ────────────────────────────────────────────────
 
 export interface AdminReadingLog {

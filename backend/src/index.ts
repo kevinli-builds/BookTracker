@@ -4,6 +4,7 @@ import 'dotenv/config';
 
 import usersRouter from './routes/users';
 import invitesRouter from './routes/invites';
+import surveysRouter from './routes/surveys';
 import booksRouter from './routes/books';
 import logsRouter from './routes/logs';
 import goalsRouter from './routes/goals';
@@ -17,6 +18,7 @@ app.use(express.json());
 
 app.use('/users', usersRouter);
 app.use('/invites', invitesRouter);
+app.use('/surveys', surveysRouter);
 app.use('/books', booksRouter);
 app.use('/logs', logsRouter);
 app.use('/goals', goalsRouter);

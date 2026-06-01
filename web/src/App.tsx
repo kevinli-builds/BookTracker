@@ -7,6 +7,7 @@ import GoalsPage from './pages/GoalsPage';
 import UsersPage from './pages/UsersPage';
 import DataPage from './pages/DataPage';
 import InvitesPage from './pages/InvitesPage';
+import SurveyPage from './pages/SurveyPage';
 import Nav from './pages/Nav';
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/invites" element={<InvitesPage />} />
+          <Route path="/survey" element={<SurveyPage />} />
           <Route path="/data" element={<DataPage />} />
         </Routes>
       </main>

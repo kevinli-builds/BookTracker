@@ -5,6 +5,7 @@ import participantsRouter from './participants';
 import goalsRouter from './goals';
 import invitesRouter from './invites';
 import dataRouter from './data';
+import surveyRouter from './survey';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use(participantsRouter);
 router.use(goalsRouter);
 router.use(invitesRouter);
 router.use(dataRouter);
+router.use(surveyRouter);
 
 export default router;

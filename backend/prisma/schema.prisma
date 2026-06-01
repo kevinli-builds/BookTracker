@@ -13,11 +13,12 @@ model User {
   status      String       @default("active") // active | withdrawn
   studyGroup  String?       // experimental condition, e.g. "tracking" | "control"
   createdAt   DateTime     @default(now())
-  logs        ReadingLog[]
-  userGoals   UserGoal[]
-  feedbacks   Feedback[]
-  streak      Streak?
-  inviteCode  InviteCode?
+  logs            ReadingLog[]
+  userGoals       UserGoal[]
+  feedbacks       Feedback[]
+  streak          Streak?
+  inviteCode      InviteCode?
+  surveyResponses SurveyResponse[]
 }
 
 model InviteCode {
@@ -96,4 +97,35 @@ model Provisioner {
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+}
+
+// ── Periodic check-in survey (admin-configurable) ────────────────────────────
+
+// Singleton config row (id = "default"). cadenceDays drives how often a
+// participant is prompted (a response is "due" if their last one was >= this
+// many days ago, or they've never responded).
+model SurveyConfig {
+  id          String   @id @default("default")
+  cadenceDays Int      @default(7)
+  updatedAt   DateTime @updatedAt
+}
+
+model SurveyQuestion {
+  id        String   @id @default(cuid())
+  prompt    String
+  type      String   // number | rating | text
+  sortOrder Int      @default(0)
+  required  Boolean  @default(false)
+  active    Boolean  @default(true) // archived (false) questions stay for export
+  createdAt DateTime @default(now())
+}
+
+model SurveyResponse {
+  id          String   @id @default(cuid())
+  userId      String
+  answers     Json     // { [questionId]: number | string }
+  submittedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, submittedAt])
 }

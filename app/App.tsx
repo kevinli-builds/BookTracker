@@ -11,6 +11,7 @@ import GoalsScreen from './src/screens/GoalsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import NameEntryScreen from './src/screens/NameEntryScreen';
 import InviteCodeScreen from './src/screens/InviteCodeScreen';
+import CheckinScreen from './src/screens/CheckinScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -98,6 +99,9 @@ export default function App() {
           </Tab.Screen>
           <Tab.Screen name="Goals" options={{ title: 'Goals' }}>
             {() => <GoalsScreen userId={user.id} />}
+          </Tab.Screen>
+          <Tab.Screen name="Check-in" options={{ title: 'Check-in' }}>
+            {() => <CheckinScreen userId={user.id} />}
           </Tab.Screen>
           <Tab.Screen name="Profile" options={{ title: 'Profile' }}>
             {() => (

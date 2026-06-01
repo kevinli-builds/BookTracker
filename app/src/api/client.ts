@@ -151,3 +151,30 @@ export async function getStats(userId: string): Promise<UserStats> {
   const { data } = await api.get(`/stats/${userId}`);
   return data;
 }
+
+// ── Check-in survey ──────────────────────────────────────────────────────────
+
+export interface SurveyQuestion {
+  id: string;
+  prompt: string;
+  type: 'number' | 'rating' | 'text';
+  required: boolean;
+}
+
+export interface SurveyStatus {
+  cadenceDays: number;
+  questions: SurveyQuestion[];
+  lastSubmittedAt: string | null;
+  nextDueAt: string | null;
+  due: boolean;
+}
+
+export async function getSurveyStatus(userId: string): Promise<SurveyStatus> {
+  const { data } = await api.get(`/surveys/${userId}`);
+  return data;
+}
+
+export async function submitSurvey(userId: string, answers: Record<string, number | string>) {
+  const { data } = await api.post('/surveys', { userId, answers });
+  return data;
+}
