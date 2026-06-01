@@ -110,6 +110,15 @@ model SurveyConfig {
   updatedAt   DateTime @updatedAt
 }
 
+// Singleton study-wide settings. hideTrackingGroups lists the study-group names
+// whose participants should NOT see the tracking features (logging/goals) in the
+// app — used to give a "control" (or any) condition a check-in-only experience.
+model StudyConfig {
+  id                 String   @id @default("default")
+  hideTrackingGroups String[] @default([])
+  updatedAt          DateTime @updatedAt
+}
+
 model SurveyQuestion {
   id        String   @id @default(cuid())
   prompt    String

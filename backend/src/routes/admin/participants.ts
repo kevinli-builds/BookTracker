@@ -6,6 +6,24 @@ import { participantInclude } from './shared';
 
 const router = Router();
 
+// ── Study-wide config: which groups have tracking hidden in the app ──────────
+router.get('/study-config', asyncHandler(async (_req, res) => {
+  const config = await prisma.studyConfig.upsert({ where: { id: 'default' }, update: {}, create: { id: 'default' } });
+  res.json({ hideTrackingGroups: config.hideTrackingGroups });
+}));
+
+router.patch('/study-config', asyncHandler(async (req, res) => {
+  const { hideTrackingGroups } = req.body as { hideTrackingGroups?: string[] };
+  if (!Array.isArray(hideTrackingGroups)) { res.status(400).json({ error: 'hideTrackingGroups (array) required' }); return; }
+  const clean = [...new Set(hideTrackingGroups.map(g => String(g).trim()).filter(Boolean))];
+  const config = await prisma.studyConfig.upsert({
+    where: { id: 'default' },
+    update: { hideTrackingGroups: clean },
+    create: { id: 'default', hideTrackingGroups: clean },
+  });
+  res.json({ hideTrackingGroups: config.hideTrackingGroups });
+}));
+
 router.get('/users', asyncHandler(async (_req, res) => {
   const users = await prisma.user.findMany({
     include: participantInclude,

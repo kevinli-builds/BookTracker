@@ -102,6 +102,16 @@ export async function assignGroups(payload: { groups: string[]; target: 'all' | 
   return data as { assigned: number; byGroup: Record<string, number> };
 }
 
+// Which study groups have the app's tracking features hidden (opt-in).
+export async function getStudyConfig(): Promise<{ hideTrackingGroups: string[] }> {
+  const { data } = await api.get('/admin/study-config');
+  return data;
+}
+export async function setHideTrackingGroups(hideTrackingGroups: string[]): Promise<{ hideTrackingGroups: string[] }> {
+  const { data } = await api.patch('/admin/study-config', { hideTrackingGroups });
+  return data;
+}
+
 export interface UserDetail {
   id: string;
   displayName: string | null;

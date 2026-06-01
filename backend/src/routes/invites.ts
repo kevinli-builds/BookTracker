@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
 import { asyncHandler } from '../lib/asyncHandler';
+import { shouldHideTracking } from '../lib/studyConfig';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.post('/redeem', asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({ ...user, hasAccess: true });
+  res.json({ ...user, hasAccess: true, hideTracking: await shouldHideTracking(user?.studyGroup) });
 }));
 
 export default router;

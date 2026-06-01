@@ -7,8 +7,10 @@ import {
   assignGroups,
   getAdminGoals,
   getAllLogs,
+  getStudyConfig,
   getUserDetail,
   getUsers,
+  setHideTrackingGroups,
 } from '../api/client';
 import { downloadCsv } from '../lib/csv';
 import { ExportButton, PageHeader, tableStyles } from '../components/ui';
@@ -28,14 +30,30 @@ export default function UsersPage() {
   const [groupTarget, setGroupTarget] = useState<'unassigned' | 'all' | 'selected'>('unassigned');
   const [grouping, setGrouping] = useState(false);
   const [groupResult, setGroupResult] = useState<string | null>(null);
+  const [hiddenGroups, setHiddenGroups] = useState<string[]>([]);
 
   const loadUsers = () => getUsers().then(setUsers);
 
   useEffect(() => {
-    Promise.all([getUsers(), getAdminGoals()])
-      .then(([u, t]) => { setUsers(u); setTemplates(t); })
+    Promise.all([getUsers(), getAdminGoals(), getStudyConfig()])
+      .then(([u, t, cfg]) => { setUsers(u); setTemplates(t); setHiddenGroups(cfg.hideTrackingGroups); })
       .finally(() => setLoading(false));
   }, []);
+
+  // Distinct groups currently in use, unioned with any already flagged hidden.
+  const groupsInUse = [...new Set([
+    ...users.map(u => u.studyGroup).filter((g): g is string => !!g),
+    ...hiddenGroups,
+  ])].sort();
+
+  const toggleHidden = async (group: string) => {
+    const next = hiddenGroups.includes(group)
+      ? hiddenGroups.filter(g => g !== group)
+      : [...hiddenGroups, group];
+    setHiddenGroups(next); // optimistic
+    const res = await setHideTrackingGroups(next);
+    setHiddenGroups(res.hideTrackingGroups);
+  };
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -174,6 +192,21 @@ export default function UsersPage() {
           </button>
         </div>
         {groupResult && <p style={s.result}>{groupResult}</p>}
+
+        {groupsInUse.length > 0 && (
+          <div style={s.hideBox}>
+            <span style={s.meta}>App experience per group — by default everyone sees tracking (logging &amp; goals). Tick a group to hide tracking, giving it a check-in-only app:</span>
+            <div style={s.hideRow}>
+              {groupsInUse.map(g => (
+                <label key={g} style={s.hideChip}>
+                  <input type="checkbox" checked={hiddenGroups.includes(g)} onChange={() => toggleHidden(g)} />
+                  <span style={s.groupTag}>{g}</span>
+                  <span style={{ fontSize: 12, color: '#666' }}>{hiddenGroups.includes(g) ? 'check-in only' : 'full app'}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={s.toolBar}>
@@ -267,6 +300,9 @@ const s: Record<string, React.CSSProperties> = {
   groupBox: { background: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, border: '1px solid #eee' },
   groupSub: { fontSize: 13, color: '#666', margin: '4px 0 12px' },
   groupRow: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
+  hideBox: { marginTop: 14, paddingTop: 12, borderTop: '1px solid #eee' },
+  hideRow: { display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 },
+  hideChip: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' },
   input: { border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px', fontSize: 14, boxSizing: 'border-box' },
   groupTag: { background: '#ede9fe', color: '#6d28d9', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 },
   toolBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 },

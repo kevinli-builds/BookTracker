@@ -19,6 +19,7 @@ interface AppUser {
   id: string;
   displayName: string | null;
   hasAccess: boolean;
+  hideTracking: boolean;
 }
 
 export default function App() {
@@ -32,7 +33,7 @@ export default function App() {
     try {
       const id = await getUserId();
       const u = await upsertUser(id);
-      setUser({ id, displayName: u?.displayName ?? null, hasAccess: !!u?.hasAccess });
+      setUser({ id, displayName: u?.displayName ?? null, hasAccess: !!u?.hasAccess, hideTracking: !!u?.hideTracking });
     } catch {
       setError(true);
     } finally {
@@ -91,15 +92,21 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer>
         <Tab.Navigator screenOptions={{ headerShown: true }}>
-          <Tab.Screen name="Home" options={{ title: 'Home' }}>
-            {() => <HomeScreen userId={user.id} />}
-          </Tab.Screen>
-          <Tab.Screen name="Search" options={{ title: 'Log a Book' }}>
-            {() => <SearchScreen userId={user.id} />}
-          </Tab.Screen>
-          <Tab.Screen name="Goals" options={{ title: 'Goals' }}>
-            {() => <GoalsScreen userId={user.id} />}
-          </Tab.Screen>
+          {/* Tracking features (Home stats, book logging, goals) are hidden for
+              study groups the researcher configured as check-in-only. */}
+          {!user.hideTracking && (
+            <>
+              <Tab.Screen name="Home" options={{ title: 'Home' }}>
+                {() => <HomeScreen userId={user.id} />}
+              </Tab.Screen>
+              <Tab.Screen name="Search" options={{ title: 'Log a Book' }}>
+                {() => <SearchScreen userId={user.id} />}
+              </Tab.Screen>
+              <Tab.Screen name="Goals" options={{ title: 'Goals' }}>
+                {() => <GoalsScreen userId={user.id} />}
+              </Tab.Screen>
+            </>
+          )}
           <Tab.Screen name="Check-in" options={{ title: 'Check-in' }}>
             {() => <CheckinScreen userId={user.id} />}
           </Tab.Screen>
