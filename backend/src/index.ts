@@ -13,7 +13,25 @@ import statsRouter from './routes/stats';
 import adminRouter from './routes/admin';
 
 const app = express();
-app.use(cors());
+
+// Restrict browser cross-origin access to the admin panel origin(s). Requests
+// with no Origin header (the native app, curl, health checks) are allowed —
+// CORS only governs browsers, which always send an Origin. Override the list
+// with ADMIN_ORIGINS (comma-separated) for preview deploys / custom domains.
+const allowedOrigins = (
+  process.env.ADMIN_ORIGINS?.split(',').map(s => s.trim()) ?? [
+    'https://book-tracker-admin.vercel.app',
+    'https://book-tracker-pf8s.vercel.app',
+    'http://localhost:5173',
+  ]
+).filter(Boolean);
+
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false); // unknown browser origin → no CORS headers → blocked
+  },
+}));
 app.use(express.json());
 
 app.use('/users', usersRouter);

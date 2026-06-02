@@ -4,7 +4,11 @@ export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
 
   const headers = Object.keys(rows[0]);
   const escape = (value: unknown) => {
-    const s = value == null ? '' : String(value);
+    let s = value == null ? '' : String(value);
+    // Neutralize CSV formula injection: a cell beginning with = + - @ (or a
+    // leading tab/CR) is treated as a formula by Excel/Sheets. Prefix with '
+    // so participant-entered text can't execute when the export is opened.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 

@@ -19,7 +19,13 @@ export const login = asyncHandler(async (req, res) => {
 // First-time setup endpoint — protected by SETUP_KEY, not a session.
 export const register = asyncHandler(async (req, res) => {
   const { email, password, setupKey } = req.body as { email: string; password: string; setupKey?: string };
-  if (setupKey !== process.env.SETUP_KEY) { res.status(403).json({ error: 'Invalid setup key' }); return; }
+  // Require SETUP_KEY to be configured AND to match — otherwise registration is
+  // closed. (Without the first check, an unset key would make `undefined ===
+  // undefined` pass and leave registration wide open.)
+  if (!process.env.SETUP_KEY || setupKey !== process.env.SETUP_KEY) {
+    res.status(403).json({ error: 'Invalid setup key' });
+    return;
+  }
   if (!email || !password) { res.status(400).json({ error: 'email and password required' }); return; }
 
   const existing = await prisma.provisioner.findUnique({ where: { email } });

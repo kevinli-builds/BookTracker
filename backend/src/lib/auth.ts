@@ -1,6 +1,12 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 
+// In production a real secret MUST be set — never silently fall back to a
+// public default (that would let anyone forge admin tokens). Locally, a dev
+// placeholder is fine.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production');
+}
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 
 // Make `req.provisionerId` a first-class, typed property set by requireAuth.
