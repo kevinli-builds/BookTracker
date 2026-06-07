@@ -130,12 +130,21 @@ export default function InvitesPage() {
               the cloud backend and database are already hosted, so you don’t need any secrets or setup beyond this.
             </p>
             <ol style={s.howtoList}>
-              <li><strong>Install Node.js</strong> (version 18 or newer) from <code style={s.code}>nodejs.org</code>, and download the BookTracker project to your computer.</li>
-              <li><strong>Open a terminal in the project</strong> and run:
-                <pre style={s.pre}>cd BookTracker/app{'\n'}npm install        (first time only){'\n'}npx expo start --tunnel</pre>
-                The first tunnel run installs a helper — say yes if asked.
+              <li><strong>Install Node.js</strong> (version 20 or newer) from <code style={s.code}>nodejs.org</code> — this gives you the <code style={s.code}>node</code> and <code style={s.code}>npm</code> commands the next steps use.</li>
+              <li>
+                <strong>Download the code from GitHub.</strong> The project lives at{' '}
+                <code style={s.code}>github.com/snowwarrior1-alt/BookTracker</code>. Either:
+                <ul style={s.subList}>
+                  <li><strong>Download a ZIP</strong> — open that page, click the green <em>Code</em> button → <em>Download ZIP</em>, then unzip it; or</li>
+                  <li><strong>Clone it</strong> (if you have Git): <pre style={s.pre}>git clone https://github.com/snowwarrior1-alt/BookTracker.git</pre></li>
+                </ul>
+                If the repo is private, sign in to GitHub with an account that has access (or ask the owner to add you / send the ZIP).
               </li>
-              <li><strong>Copy the <code style={s.code}>exp://…</code> link</strong> it prints and paste it in the box above to make your QR.</li>
+              <li><strong>Open a terminal in the project’s <code style={s.code}>app</code> folder</strong> and run:
+                <pre style={s.pre}>cd BookTracker/app{'\n'}npm install        (first time only){'\n'}npx expo start --tunnel</pre>
+                The first tunnel run installs a helper — say <em>yes</em> if asked. Nothing else (no keys, no database) is needed — the backend is already hosted.
+              </li>
+              <li><strong>Copy the <code style={s.code}>exp://…</code> link</strong> it prints in the terminal and paste it in the box above to make your QR.</li>
               <li><strong>Leave that terminal open</strong> while participants join. The link only works while it’s running, and a new link is generated each time you restart — so regenerate the QR here whenever you restart.</li>
             </ol>
           </div>
@@ -265,6 +274,7 @@ const s: Record<string, React.CSSProperties> = {
   runBody: { marginTop: 10 },
   runIntro: { fontSize: 13, color: '#555', margin: '0 0 10px', lineHeight: 1.6 },
   pre: { background: '#1a1a2e', color: '#f4f4f4', borderRadius: 8, padding: '10px 12px', fontSize: 12.5, overflowX: 'auto', margin: '6px 0' },
+  subList: { margin: '6px 0', paddingLeft: 18, lineHeight: 1.6 },
   card: { background: '#fff', borderRadius: 10, padding: 20, marginBottom: 20 },
   modeRow: { display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' },
   radio: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' },
