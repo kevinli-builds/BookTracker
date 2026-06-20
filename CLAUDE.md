@@ -1,16 +1,30 @@
 # BookTracker — Claude Context
 
 ## Concept
-A research reading-tracker app for a marketing PhD study. Participants log books
-they read, track streaks and reading time, and receive goals (self-set or
-randomly assigned by the researcher). The researcher ("provisioner") has a
-separate web admin panel to invite participants, design and assign goals, manage
-participants, and export aggregated data and feedback.
+A research reading-tracker app for a marketing PhD study comparing reading
+behavior **when people track vs. when they don't**. Participants log books, build
+streaks, log reading time, and pursue goals (self-chosen or randomly assigned).
+The researcher ("provisioner") uses a separate web admin panel to invite
+participants, assign them to experimental groups, build goals and a recurring
+check-in survey, configure each group's app experience, and export everything to
+CSV keyed to the participant.
 
 Participation is **invite-only**: the researcher generates single-use invite
-codes; a participant must enter a valid code on first launch to use the app.
-Participants are otherwise anonymous (a device UUID + a name/ID they enter, or a
-label baked into their invite code) — no passwords, minimal PII.
+codes; a participant enters a valid code on first launch. Participants are
+otherwise anonymous — a device UUID + a name/ID they enter (or a label baked into
+their invite code). No participant passwords, minimal PII.
+
+### Research design support (the why behind several features)
+- **Study groups / conditions** — randomly (balanced) or manually assign each
+  participant to a named group (e.g. `tracking` / `control`). The group rides
+  along in every CSV export so analysis can split by condition.
+- **Periodic check-in survey** — an admin-configurable questionnaire EVERY
+  participant answers on a schedule. It's the **shared outcome measure** across
+  conditions (the control group isn't logging books, so logs alone can't compare
+  groups).
+- **Per-group app experience** — the admin can opt-in to hide the tracking
+  features (logging, goals) for any group, giving e.g. the control group a
+  check-in-only app. Default: every group sees the full app.
 
 ---
 
@@ -18,16 +32,15 @@ label baked into their invite code) — no passwords, minimal PII.
 
 | Layer | Tech |
 |---|---|
-| Mobile app | React Native 0.81 + Expo SDK 54 (React 19; New Architecture on by default) |
+| Mobile app | React Native 0.81 + Expo SDK 54 (React 19; New Architecture default) |
 | Language | TypeScript throughout |
 | Backend | Node.js + Express (serverless on Vercel via `@vercel/node`) |
 | ORM | Prisma v5 |
 | Database | PostgreSQL (Neon.tech free tier, pooled connection) |
-| Book data | Open Library API (free, no key); optional Google Books if GOOGLE_BOOKS_API_KEY is set |
+| Book data | Open Library API (free, no key); optional Google Books if `GOOGLE_BOOKS_API_KEY` set |
 | Admin auth | JWT (provisioner only; 7-day expiry) |
 | Participant gating | Single-use invite codes (no passwords) |
 | Hosting | Vercel — backend + admin panel are separate Vercel projects |
-| Secrets | backend `.env` (gitignored) + Vercel dashboard env vars |
 
 ---
 
@@ -39,9 +52,9 @@ label baked into their invite code) — no passwords, minimal PII.
 | Web admin panel | https://book-tracker-admin.vercel.app (alias of `book-tracker-pf8s`) |
 | GitHub | https://github.com/snowwarrior1-alt/BookTracker (branch `main`) |
 
-A provisioner account exists (`admin@booktracker.com`). The password is the
-default seeded at setup — **change it** via the admin panel's "Change password"
-button. Never commit the password to this repo.
+A provisioner account exists (`admin@booktracker.com`). **⚠️ The password is still
+the setup default — change it via the admin panel's "Change password" button.**
+Never commit the password.
 
 ---
 
@@ -51,56 +64,72 @@ button. Never commit the password to this repo.
 BookTracker/
 ├── backend/
 │   ├── src/
-│   │   ├── index.ts                Express app; route mounting; 404 + global error handler; exports app (serverless) and only listens when !VERCEL
+│   │   ├── index.ts                Express app; CORS allowlist; route mounting; 404 + global error handler; listens only when !VERCEL
 │   │   ├── lib/
-│   │   │   ├── prisma.ts           Prisma client singleton
-│   │   │   ├── streak.ts           Streak update logic (called after every log)
-│   │   │   ├── auth.ts             JWT sign/verify, requireAuth middleware
+│   │   │   ├── prisma.ts           Prisma client singleton (global-guarded)
+│   │   │   ├── streak.ts           Streak update, keyed off the participant's LOCAL date
+│   │   │   ├── auth.ts             JWT sign/verify, requireAuth, Request.provisionerId augmentation, prod fail-fast if JWT_SECRET unset
 │   │   │   ├── asyncHandler.ts     Wraps async routes so rejections hit the global error handler
 │   │   │   ├── inviteCode.ts       Human-friendly invite-code generator (no ambiguous chars)
-│   │   │   └── goalProgress.ts     Shared "criteria met?" computation for a goal + a user's logs
+│   │   │   ├── goalProgress.ts     Shared "criteria met?" computation (books_count/pages/minutes/author/genre/specific_book)
+│   │   │   └── studyConfig.ts      shouldHideTracking(group) helper
 │   │   └── routes/
-│   │       ├── users.ts            POST /users — upsert device user; returns hasAccess
-│   │       ├── invites.ts          POST /invites/redeem — participant redeems an invite code
-│   │       ├── books.ts            GET /books/search — proxy Google Books API
-│   │       ├── logs.ts             POST /logs (stores categories), GET /logs/:userId
-│   │       ├── goals.ts            GET /goals/templates, POST /goals/self, PATCH /goals/:id/complete|abandon, GET /goals/:userId
+│   │       ├── users.ts            POST /users — upsert device user; returns hasAccess + hideTracking
+│   │       ├── invites.ts          POST /invites/redeem — atomic code claim; adopts label as name
+│   │       ├── surveys.ts          GET /surveys/:userId (questions + due), POST /surveys (submit)
+│   │       ├── books.ts            GET /books/search — Open Library (Google Books if key set), real 502 on failure
+│   │       ├── logs.ts             POST /logs (stores categories+pageCount, auto-completes goals), GET /logs/:userId
+│   │       ├── goals.ts            GET /goals/templates, POST /goals/self, PATCH /goals/:id/complete|abandon, GET /goals/:userId (incl. hasFeedback)
 │   │       ├── feedback.ts         POST /feedback
 │   │       ├── stats.ts            GET /stats/:userId — per-user aggregated stats
-│   │       └── admin.ts            Auth + provisioner-only endpoints (see API table)
+│   │       └── admin/             (split by domain; index.ts owns the public-vs-protected boundary)
+│   │           ├── index.ts        login/register public → requireAuth → mounts the rest
+│   │           ├── auth.ts         login, register (SETUP_KEY-gated), change-password
+│   │           ├── participants.ts /users list/detail/edit, assign-groups, study-config (hide-tracking)
+│   │           ├── goals.ts        goal-template CRUD + /assign (random pool)
+│   │           ├── invites.ts      generate/list/revoke invite codes
+│   │           ├── data.ts         /logs export, /goal-progress, /data dashboard aggregates
+│   │           ├── survey.ts       cadence + question CRUD + standard set + /surveys responses export
+│   │           └── shared.ts       reusable Prisma select fragments (invite code, participant, identity)
 │   ├── prisma/
-│   │   ├── schema.prisma           Models: User, ReadingLog, Streak, GoalTemplate, UserGoal, Feedback, Provisioner, InviteCode
-│   │   └── migrations/             init, invite_codes, participant_status, reading_log_categories
+│   │   ├── schema.prisma           Models below
+│   │   └── migrations/             init → invite_codes → participant_status → reading_log_categories → reading_log_pagecount → user_study_group → survey → study_config_hide_tracking
 │   ├── vercel.json                 Routes all paths to src/index.ts via @vercel/node
 │   └── package.json                vercel-build = "prisma generate && prisma migrate deploy"
 ├── app/                            React Native / Expo app
-│   ├── App.tsx                     Root gate: invite code → name → 4-tab navigator
+│   ├── App.tsx                     Gate: invite code → name → tabs. Tabs depend on hideTracking (full = Home/Log/Goals/Check-in/Profile; hidden = Check-in/Profile)
 │   ├── app.json                    Expo config (extra.apiUrl = Vercel backend)
 │   ├── eas.json                    EAS Build profiles (development/preview/production)
 │   └── src/
 │       ├── api/client.ts           Axios instance + all typed API functions
 │       ├── lib/userId.ts           Persistent device UUID via expo-secure-store
+│       ├── components/RetryView.tsx  Shared load-error/retry view
 │       └── screens/
 │           ├── InviteCodeScreen.tsx  First-launch invite-code gate
 │           ├── NameEntryScreen.tsx   Name/participant-ID entry (skipped if code carried a label)
-│           ├── HomeScreen.tsx        Stat cards + recent reading log list
-│           ├── SearchScreen.tsx      Google Books search + log-a-book (sends categories)
-│           ├── GoalsScreen.tsx       Active/past goals, add/complete/abandon, feedback modal
-│           └── ProfileScreen.tsx     Editable name + full stats (totals, streaks, top books, chart)
+│           ├── HomeScreen.tsx        Stat cards + recent reading (refetch on focus)
+│           ├── SearchScreen.tsx      Book search + log-a-book (sends categories, pageCount, localDate)
+│           ├── GoalsScreen.tsx       Goals; auto-checkable goals show "auto-completes" note; feedback prompt on completed-without-feedback
+│           ├── CheckinScreen.tsx     Dynamic survey form (number/rating/text), due/next-due logic
+│           └── ProfileScreen.tsx     Editable name + full stats
 ├── web/                            Provisioner admin panel (Vite + React)
 │   ├── .env.production             VITE_API_URL (committed; the prod API URL is not secret)
 │   ├── vercel.json                 SPA rewrite — all paths → index.html
 │   └── src/
 │       ├── App.tsx                 Auth gate + global error banner + session-expiry handling
 │       ├── api/client.ts           Axios + JWT mgmt + response interceptor (errors / 401)
-│       ├── lib/csv.ts              Generic CSV builder + browser download
+│       ├── lib/csv.ts              CSV builder + download (escapes formula-injection)
+│       ├── components/
+│       │   ├── ui.tsx               Shared PageHeader / ExportButton / ConfirmDialog / tableStyles
+│       │   └── ParticipantDetail.tsx  Per-participant management modal (rename, status, group, logs/goals/feedback)
 │       └── pages/
-│           ├── Nav.tsx               Top nav (Dashboard, Goals, Invites, Participants, Data) + Change password
+│           ├── Nav.tsx               Dashboard · Goals · Invites · Participants · Survey · Data
 │           ├── LoginPage.tsx         Provisioner login (+ "session expired" notice)
 │           ├── DashboardPage.tsx     Summary stats + top books + goal completion rates
-│           ├── GoalsPage.tsx         Graphical goal builder (no JSON) + random assignment
-│           ├── InvitesPage.tsx       Invite instructions + generate/copy/revoke codes + export
-│           ├── UsersPage.tsx         "Participants": search, code/label/status, detail modal, mgmt
+│           ├── GoalsPage.tsx         Graphical goal builder (books/pages/minutes/genre/author/specific-book) + random assignment
+│           ├── InvitesPage.tsx       Invite + recruit instructions, QR generator, owner "run it yourself" steps, code mgmt
+│           ├── UsersPage.tsx         "Participants": search, code/label/status/group columns, random+manual group assignment, per-group hide-tracking toggles, detail modal, CSV
+│           ├── SurveyPage.tsx        Check-in builder: cadence, add/edit/reorder/remove questions, responses CSV
 │           └── DataPage.tsx          Tabs: Goal Progress (auto-check) | Feedback | Goal Outcomes
 └── .gitignore
 ```
@@ -110,104 +139,116 @@ BookTracker/
 ## Database Schema
 
 ```prisma
-User           id (device UUID), displayName, status (active|withdrawn), createdAt
-ReadingLog     id, userId, googleBooksId, title, author, coverUrl, categories[], minutesRead, loggedAt
+User           id (device UUID), displayName, status (active|withdrawn), studyGroup (nullable), createdAt
+ReadingLog     id, userId, googleBooksId, title, author, coverUrl, categories[], pageCount?, minutesRead, loggedAt
 Streak         userId (PK), currentStreak, longestStreak, lastReadDate
 GoalTemplate   id, title, description, type, criteria (JSON), randomPool, createdAt
 UserGoal       id, userId, templateId, status (active|completed|abandoned), assignedBy (self|system), assignedAt, completedAt, deadline
-Feedback       id, userId, userGoalId, rating (int 1-5), text, createdAt
+Feedback       id, userId, userGoalId, rating, text, createdAt
 Provisioner    id, email, passwordHash, createdAt
-InviteCode     id, code (unique), label (optional participant ID), usedByUserId (unique), usedAt, createdAt
+InviteCode     id, code (unique), label (participant ID), usedByUserId (unique), usedAt, createdAt
+SurveyConfig   id="default" (singleton), cadenceDays
+SurveyQuestion id, prompt, type (number|rating|text), sortOrder, required, active
+SurveyResponse id, userId, answers (JSON {questionId: value}), submittedAt
+StudyConfig    id="default" (singleton), hideTrackingGroups[]
 ```
 
-`User.inviteCode` is a 1:1 back-relation to the `InviteCode` a participant
-redeemed — this is how behavioral data is tied back to a recruited person.
+`User.inviteCode` (1:1 back-relation) ties behavioral data to a recruited person.
+`studyGroup` is a free-form name; the admin's hide-tracking config and exports use it.
 
 ---
 
 ## API Endpoints
 
-### Public (no auth)
+### Public (no auth) — keyed by device UUID
 | Method | Path | Description |
 |---|---|---|
-| POST | `/users` | Upsert device user; returns `{…, hasAccess}` |
-| POST | `/invites/redeem` | `{userId, code}` → redeem an invite code (gates the app); adopts code label as name |
-| GET | `/books/search?q=` | Search Google Books |
-| POST | `/logs` | Log a reading session (stores `categories`; triggers streak update) |
-| GET | `/logs/:userId` | Get all logs for user |
-| GET | `/goals/templates` | List all goal templates |
-| POST | `/goals/self` | User picks a goal |
-| GET | `/goals/:userId` | Get user's goals |
-| PATCH | `/goals/:goalId/complete` | Mark goal complete |
-| PATCH | `/goals/:goalId/abandon` | Abandon goal |
-| POST | `/feedback` | Submit feedback on a goal |
-| GET | `/stats/:userId` | Aggregated stats for user |
-| GET | `/health` | `{ok: true}` |
+| POST | `/users` | Upsert device user → `{…, hasAccess, hideTracking}` |
+| POST | `/invites/redeem` | `{userId, code}` → atomic claim; adopts code label as name → `{…, hasAccess, hideTracking}` |
+| GET | `/books/search?q=` | Open Library search (Google Books if key set); 502 on failure |
+| POST | `/logs` | Log reading (stores categories/pageCount; updates streak via `localDate`; **auto-completes met goals**) |
+| GET | `/logs/:userId` | All logs for user |
+| GET | `/goals/templates` · POST `/goals/self` · GET `/goals/:userId` (incl. `hasFeedback`) | Goal templates / self-add / list |
+| PATCH | `/goals/:goalId/complete\|abandon` | Manual complete (custom goals) / abandon |
+| POST | `/feedback` | Feedback on a goal |
+| GET | `/stats/:userId` | Aggregated stats |
+| GET | `/surveys/:userId` | Active questions + cadence + `due`/`nextDueAt` |
+| POST | `/surveys` | `{userId, answers}` → submit a check-in (validates required) |
+| GET | `/health` | `{ok:true}` |
 
 ### Admin (JWT required, except login/register)
 | Method | Path | Description |
 |---|---|---|
-| POST | `/admin/login` | Get JWT (7-day) |
-| POST | `/admin/register` | Create provisioner (requires SETUP_KEY) |
-| POST | `/admin/change-password` | Change own password (verifies current) |
-| GET | `/admin/users` | All participants w/ code, label, status, counts, streak |
-| GET | `/admin/users/:id` | Full participant detail: code, logs, goals+progress, feedback |
-| PATCH | `/admin/users/:id` | Edit displayName and/or status (active|withdrawn) |
-| GET | `/admin/goals` | Goal templates w/ assignment counts |
-| POST/PATCH/DELETE | `/admin/goals[/:id]` | CRUD goal templates |
-| POST | `/admin/assign` | Randomly assign pool goals (to all *active*, or selected) |
-| GET | `/admin/invites` | List invite codes + redeemer |
-| POST | `/admin/invites` | Generate codes — `{labels:[…]}` or `{count:N}` |
-| DELETE | `/admin/invites/:id` | Revoke an unused code |
-| GET | `/admin/logs` | All reading logs joined with participant name/code (for export) |
-| GET | `/admin/goal-progress` | Per-assignment auto-checked progress + "criteria met" flag |
-| GET | `/admin/data` | Aggregate research data + feedback (w/ participant code) |
+| POST | `/admin/login` · `/admin/register` (SETUP_KEY) · `/admin/change-password` | Auth |
+| GET | `/admin/users` | Participants w/ code, label, status, **group**, counts, streak |
+| GET/PATCH | `/admin/users/:id` | Detail (logs, goals+progress, feedback); edit displayName/status/**studyGroup** |
+| POST | `/admin/assign-groups` | Balanced random group assignment (target all/unassigned/selected) |
+| GET/PATCH | `/admin/study-config` | `hideTrackingGroups` — which groups get the check-in-only app |
+| GET/POST/PATCH/DELETE | `/admin/goals[/:id]` · POST `/admin/assign` | Goal templates + random pool assignment |
+| GET/POST/DELETE | `/admin/invites[/:id]` | Invite codes |
+| GET | `/admin/logs` · `/admin/goal-progress` · `/admin/data` | Exports + dashboard (all carry participant code/label/group) |
+| GET/PATCH | `/admin/survey/config` | Cadence (days) |
+| GET/POST/PATCH/DELETE | `/admin/survey/questions[/:id]` · POST `/admin/survey/questions/standard` | Question CRUD + load standard set |
+| GET | `/admin/surveys` | All responses + question set, for dynamic CSV export |
 
-Unknown routes return JSON `{error:"Not found"}` (404); unhandled errors return a
-generic 500 (or 400 for malformed JSON) via the global error middleware — no
-stack-trace leaks.
+Unknown routes → JSON 404; unhandled errors → generic 500 (or 400 malformed JSON). No stack-trace leaks.
 
 ---
 
-## Goals & Auto-checking
+## Goals & Auto-completion
 
-The admin builds goals with a **graphical form** (no JSON). `type` + `criteria`:
-- `books_count` → `{count:N}` — distinct books logged
-- `minutes` → `{minutes:N}` — total minutes logged
-- `author` → `{author:"…"}` — a book whose author matches
-- `genre` → `{genre:"…"}` — a book whose Google Books categories match
-- `custom` → `{}` — free-form, manual only
+Admin builds goals with a **graphical form** (no JSON). `type` → `criteria`:
+- `books_count` → `{count}` · `pages` → `{pages}` (sums distinct books' page counts)
+- `minutes` → `{minutes}` · `author` → `{author}` · `genre` → `{genre}` (matches Open Library categories)
+- `specific_book` → `{googleBooksId, title}` (admin searches & picks the book)
+- `custom` → `{}` — manual only
 
-Participants mark goals complete themselves (this self-report + feedback is a
-research signal). The admin **Data → Goal Progress** tab also auto-checks each
-assignment against reading logged *after* it was assigned, and flags "criteria
-met" without changing the participant's status (so self-reported vs behavioral
-completion stay distinguishable). Auto-checkable: books_count, minutes, author,
-genre. `custom` is manual-only. Genre only works for books logged *after* the
-categories feature shipped (older logs have no categories).
+**Goals auto-complete from logging.** When a participant logs a book, the backend
+re-evaluates their active goals and completes any whose criteria are met (all
+types except `custom`). The app shows "✓ Completes automatically as you log
+books" for these, and on the Goals tab prompts for rating/comment feedback on any
+completed goal that lacks it (`/goals/:userId` returns `hasFeedback`). Only
+`custom` goals keep a manual "Mark complete" button. The admin **Data → Goal
+Progress** tab independently shows computed progress + a "criteria met" flag.
 
 ---
 
-## Environment Variables
+## Security posture
+- **No SQL injection** (Prisma parameterized; zero raw queries). **No XSS sinks**
+  (no innerHTML/eval; React escapes). **0 dependency vulnerabilities** (prod).
+- **CORS locked** to the admin origin(s) + localhost (override with `ADMIN_ORIGINS`).
+  No-Origin clients (native app, curl) allowed; unknown browser origins blocked.
+- **CSV formula-injection guarded**: cells starting with `= + - @` (tab/CR) are
+  quote-prefixed so participant text can't execute in Excel/Sheets.
+- **Secrets fail-fast**: prod throws if `JWT_SECRET` is unset (no public-default
+  fallback); `/admin/register` requires `SETUP_KEY` to be set. Passwords bcrypt(12).
+- **Accepted tradeoffs**: participant endpoints are unauthenticated, keyed by an
+  unguessable 122-bit UUID and scoped to that one user (no cross-participant leak)
+  — reasonable for anonymous research data. No rate limiting (would need an
+  external store on Vercel; a strong admin password covers login brute-force).
+- **Outstanding**: change the default admin password (see Live URLs).
 
-Never commit values. Names only:
+---
+
+## Environment Variables (names only — never commit values)
 
 ### Backend — `backend/.env` locally; Vercel dashboard in prod
 ```
-DATABASE_URL        # Neon pooled connection string
-JWT_SECRET          # long random string for JWT signing
-SETUP_KEY           # one-time secret to create the provisioner account
-GOOGLE_BOOKS_API_KEY  # optional — works without, just rate-limited
-PORT                # local only; ignored on Vercel
+DATABASE_URL          # Neon pooled connection string
+JWT_SECRET            # REQUIRED in prod (app refuses to start without it)
+SETUP_KEY             # REQUIRED to use /admin/register
+GOOGLE_BOOKS_API_KEY  # optional — if set, Google Books is tried before Open Library
+ADMIN_ORIGINS         # optional — comma-separated CORS allowlist (defaults to the known admin origins + localhost)
+PORT                  # local only; ignored on Vercel
 ```
 
 ### Web admin
-`VITE_API_URL` is committed in `web/.env.production` (the prod API URL is public,
-not a secret). There is **no** `VITE_API_URL` in the Vercel dashboard — it was
-removed after a hand-typed-typo incident broke the admin; keep it in the file.
+`VITE_API_URL` is committed in `web/.env.production` (public). There is **no**
+`VITE_API_URL` in the Vercel dashboard — it was removed after a typo there broke
+the admin; keep it in the file.
 
 ### App — `app/app.json` → `extra.apiUrl`
-Already points at `https://book-tracker-api.vercel.app`.
+Points at `https://book-tracker-api.vercel.app`.
 
 ---
 
@@ -215,154 +256,109 @@ Already points at `https://book-tracker-api.vercel.app`.
 
 ```bash
 # Backend
-cd backend
-npm install
-# create backend/.env (see vars above)
-npx prisma generate
-npm run dev                 # http://localhost:3000
+cd backend && npm install
+# create backend/.env (vars above); then:
+npx prisma generate && npm run dev      # http://localhost:3000
 
 # Web admin (separate terminal)
-cd web
-npm install
-# .env.production already has the prod URL; for local API use a .env.local with VITE_API_URL=http://localhost:3000
-npm run dev                 # http://localhost:5173
+cd web && npm install
+# for a local API: .env.local with VITE_API_URL=http://localhost:3000
+npm run dev                              # http://localhost:5173
 
 # App (separate terminal) — talks to the cloud backend by default
-cd app
-npm install
-npm start                   # scan QR with Expo Go
+cd app && npm install && npm start       # scan QR with Expo Go (SDK 54 build)
 ```
 
-First-time provisioner account:
-```bash
-curl -X POST https://book-tracker-api.vercel.app/admin/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com","password":"…","setupKey":"<SETUP_KEY>"}'
-```
+First-time provisioner: `POST /admin/register` with `{email,password,setupKey:<SETUP_KEY>}`.
 
 ---
 
 ## Deployment (Vercel)
 
-Two Vercel projects watch this repo; every push to `main` deploys both.
-
-1. **Backend** project `book-tracker` — root dir `backend`. `vercel-build` runs
-   `prisma generate && prisma migrate deploy`. Domain alias `book-tracker-api`.
-   Env vars set in the Vercel dashboard.
-2. **Admin** project `book-tracker-pf8s` — root dir `web`. Vite build; `web/vercel.json`
-   gives the SPA an index.html rewrite (deep links/refresh work). Domain alias
-   `book-tracker-admin`. Reads `VITE_API_URL` from `web/.env.production`.
-3. **Database** — Neon. Migrations are applied locally with `prisma migrate dev`
-   (against Neon) before pushing; the prod `migrate deploy` is then a no-op safety net.
+Two projects watch this repo; every push to `main` deploys both.
+1. **Backend** `book-tracker` — root `backend`; `vercel-build` runs
+   `prisma generate && prisma migrate deploy`; alias `book-tracker-api`. Env in dashboard.
+2. **Admin** `book-tracker-pf8s` — root `web`; Vite build; `web/vercel.json` SPA
+   rewrite; alias `book-tracker-admin`; reads `VITE_API_URL` from `.env.production`.
+3. **Database** Neon — apply migrations locally with `prisma migrate dev` (against
+   Neon) BEFORE pushing, so prod `migrate deploy` is a no-op safety net.
 
 > **Known flake:** `prisma migrate deploy` occasionally fails on Neon's pooled
-> endpoint with `P1002` (advisory-lock timeout). It's transient — just redeploy
-> the failed build. (Hardening option: point migrations at Neon's direct,
-> non-pooled connection via Prisma `directUrl`, or drop `migrate deploy` from the
-> build since migrations are already applied locally.)
+> endpoint with `P1002` (advisory-lock timeout) — transient; just redeploy.
 
 ---
 
 ## Getting the App to Participants
 
-The app talks to the **cloud** backend (`extra.apiUrl` = the Vercel URL), so a
-participant's phone only needs internet — it does NOT need to be on the same
-Wi-Fi as the developer.
+The app talks to the **cloud** backend, so a phone only needs internet (not the
+same Wi-Fi). The admin **Invites** page has full in-app instructions, a QR
+generator, and an owner "run it yourself" step-by-step (incl. cloning the repo).
 
 ### Pilot (free, no build) — Expo Go + tunnel
-
-Run this on any computer with the repo. Participants can be anywhere.
-
 ```bash
-cd app
-npm install                 # first time only
-npx expo start --tunnel     # first run asks to install @expo/ngrok — say yes
+cd app && npm install
+npx expo start --tunnel      # first run installs @expo/ngrok — say yes
 ```
+Prints a QR + `exp://…exp.direct` link. Participants install **Expo Go**, then
+iPhone: Camera → QR; Android: Expo Go → Scan QR. Caveats: only works while the
+process runs; the link changes on restart (regenerate the QR in the admin).
 
-This prints a **QR code** and an `exp://…exp.direct` **link**. That QR/link is
-exactly the "study's BookTracker link" referenced in the admin panel's invite
-instructions — share it in recruitment.
-
-Tell each participant:
-- **iPhone:** install **Expo Go** from the App Store → open the **Camera** app →
-  point at the QR → tap the banner to open it in Expo Go.
-- **Android:** install **Expo Go** from Google Play → open Expo Go → **Scan QR
-  code** → scan it.
-
-Then BookTracker loads and asks for their invite code.
-
-**Pilot caveats:**
-- Works only while this `expo start` process keeps running on the computer.
-- The tunnel URL changes each time you restart, so regenerate/reshare the QR per
-  session. Fine for validating with a handful of people; not for a 24/7 study.
-
-### Scaling up (always-on) — EAS Build
-
-`app/eas.json` is already configured. When you outgrow the pilot:
-- **Android (free):** `cd app && eas build -p android --profile preview` →
-  produces a permanent, installable **APK** with a shareable link/QR. Participants
-  tap to install (they may need to allow "install from unknown sources").
-- **iOS (paid):** requires an **Apple Developer account ($99/yr)** + **TestFlight**
-  (participants install the TestFlight app, then accept an invite). There is no
-  free way to put an iOS app on arbitrary phones.
-- Both need a free **Expo account** + `npm i -g eas-cli` then `eas login` and
-  `eas init` (the latter writes `extra.eas.projectId` into `app.json`).
-
-> Heads-up: modern Expo (SDK 50+) removed the old `expo publish` flow, so there is
-> no "permanent Expo Go link anyone can open." Permanent distribution = EAS Build.
+### Scaling up — EAS Build (`app/eas.json` ready)
+- **Android (free):** `eas build -p android --profile preview` → installable APK.
+- **iOS (paid):** Apple Developer account ($99/yr) + TestFlight.
+- Needs a free Expo account + `eas login` + `eas init` (writes `extra.eas.projectId`).
+> Modern Expo removed `expo publish`; permanent distribution = EAS Build.
 
 ---
 
-## Current Status (as of 2026-05-29)
+## Current Status (as of 2026-06-01)
 
-**Backend + admin panel are deployed, live, and verified. The mobile app
-compiles and bundles clean on SDK 54 but has NOT yet been run on a physical
-device — the pilot run will be its first real on-device launch.**
+**Backend + admin panel are deployed, live, and verified end-to-end. The mobile
+app compiles, type-checks, and bundles clean on SDK 54 but has NOT yet been run
+on a physical device — the pilot run is its first real on-device launch.**
 
-### Done & verified live
-- Backend on Vercel: all routes, JWT auth, global error handling, invite redeem
-  (atomic), participant management, goal auto-check (books/minutes/author/genre).
-  Verified via live end-to-end tests. Streaks use the participant's local date.
-- Admin panel: invites (+ install/recruit instructions + QR generator), graphical
-  goal builder, Participants page (search, detail, rename, withdraw), Goal Progress
-  auto-check, CSV exports with invite code/label threaded through, change-password,
-  global error banner + session-expiry redirect, shared UI components. Verified
-  in-browser.
-- Mobile app upgraded to **Expo SDK 54** (React 19, RN 0.81, React Navigation v7).
-  `expo install --check` clean, tsc clean, full Metro `expo export` bundle (836
-  modules) builds with no errors. Per-screen load-error/retry handling added.
-- Database on Neon with 6 migrations applied.
+### Built & verified live this far
+- Invite-gated anonymous participation; participant management (search, detail,
+  rename, withdraw).
+- **Study groups** — random (balanced) + manual assignment; group in every CSV.
+- **Check-in survey** — admin-configurable questions + cadence; participant
+  Check-in tab; responses export with dynamic per-question columns + code/group.
+- **Per-group hide-tracking** — opt-in; hidden groups get a Check-in/Profile-only
+  app; default is the full app.
+- **Goals** — graphical builder (6 types), **auto-completion from logging**, plus
+  the admin Goal-Progress flag view; feedback still collected on completion.
+- Open Library book search; local-date streaks; CSV exports; goal/data/survey
+  dashboards.
+- **Security hardening** — locked CORS, CSV-injection guard, secret fail-fast.
+- Backend refactored into domain route modules; shared web UI components.
+- Each feature verified with live end-to-end tests; test data cleaned up.
+- 8 Neon migrations applied.
 
-### Next
-1. **Pilot run** — `cd app && npm install && npx expo start --tunnel`; open in
-   **Expo Go (must be the SDK 54 build)**; walk the full flow (redeem code → log a
-   book → goals → profile). New Architecture is on by default — watch for any
-   on-device-only quirks.
-2. Generate invite codes in the admin, paste the tunnel link into the Invites-page
-   QR tool, hand the QR + codes to a few testers.
-3. When ready to scale, set up EAS Build (Android free APK / iOS TestFlight).
+### Next (priority order)
+1. **Change the admin password** (still the default).
+2. **Device pilot** — `cd app && npx expo start --tunnel`, open in Expo Go (SDK
+   54 build), walk the full flow per group (full app + check-in-only). Watch for
+   New-Architecture-only quirks and the 5-tab / 2-tab layouts.
+3. Generate codes, assign groups, configure the survey, hand QR + codes to testers.
+4. When scaling: EAS Build.
 
-### Optional follow-ups noted
-- Harden the `migrate deploy` advisory-lock flake (Prisma `directUrl`, or drop it).
-- From the code review, conscious-tradeoff items left as-is: distinct-book count
-  inconsistency (id vs title), unauthenticated UUID-keyed participant endpoints,
-  open CORS / no login rate-limit, duplicated API types between app and web.
+### Optional follow-ups noted (not done)
+- Informed-consent capture at onboarding (IRB/ethics) and a participant
+  data-deletion path (withdrawal/GDPR) — flagged as the next worthwhile features.
+- Real rate limiting (needs Upstash/Redis on Vercel).
+- Harden the `migrate deploy` advisory-lock flake (Prisma `directUrl`).
 
 ---
 
 ## Notes
-- Use `npm.cmd` (not `npm`) in PowerShell to avoid `.ps1` execution policy errors.
-- The `prisma` package must be in `dependencies` (not devDependencies) — the
-  build calls it at deploy time.
-- Apply schema changes with `prisma migrate dev` locally (against Neon) before
-  pushing, so prod `migrate deploy` is just a confirmation.
-- Book search uses Open Library (no key, reliable). Google Books is only used if
-  `GOOGLE_BOOKS_API_KEY` is set — keyless Google Books shares a global anonymous
-  quota that is routinely exhausted (returns 429), which is why we defaulted to
-  Open Library. `/books/search` returns a real 502 on failure, never a silent `[]`.
-- Participants are invite-gated and anonymous; keep the master list of
-  code → real person OUTSIDE the app.
-- SDK 54 requires participants' Expo Go to be the SDK 54 build; New Architecture
-  is enabled by default. The reading streak relies on the app sending its local
-  date with each log (`localDate`).
-- `@expo/ngrok` is a dependency so `npx expo start --tunnel` works out of the box.
+- Use `npm.cmd` (not `npm`) in PowerShell to avoid `.ps1` execution-policy errors.
+- `prisma` must be in `dependencies` (the deploy build calls it).
+- Apply schema changes with `prisma migrate dev` locally before pushing.
+- Genre/pages goal checks only count books logged AFTER those features shipped
+  (older logs lack categories/pageCount).
+- Reading streak relies on the app sending `localDate` with each log.
+- Participants are invite-gated and anonymous; keep the code → real-person master
+  list OUTSIDE the app.
+- The neighboring `C:\Users\snoww\Do I Want To Know` folder is a SEPARATE project
+  (a Gmail "Wrapped" app) — not part of BookTracker.
+```
