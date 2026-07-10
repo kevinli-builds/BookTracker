@@ -8,6 +8,13 @@ Verify current state before implementing._
 
 ---
 
+## 0. Status ledger (2026-07-05) + how to pick up
+
+**Status: FROZEN during the study.** Schema changes mid-study corrupt the dataset — do NOT ship participant-facing changes while data collection is live. (The default admin password is a known open item the user is handling separately — do not block on it.)
+**Safe to build ANYTIME (admin-only, no participant surface)** — §5 R6 analysis-bundle export (tidy CSVs + codebook) ⭐ and R7 power calculator.
+**Post-study v2 backlog (in order)** — §5 R1 configurable tracked-activity ⭐ + R2 study-phases ⭐ (these two are also the in-place path to the StudyKit product idea in `PROJECT_IDEAS.md`), then R3–R5.
+**Before any feature** — the device pilot (P1) still has not run on a physical phone.
+
 ## 1. Product roadmap (PM)
 
 ### P0 — Change the default admin password
