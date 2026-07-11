@@ -9,6 +9,7 @@ const LINKS = [
   { to: '/users', label: 'Participants' },
   { to: '/survey', label: 'Survey' },
   { to: '/data', label: 'Data' },
+  { to: '/power', label: 'Power' },
 ];
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
@@ -55,7 +56,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             {error && <p style={{ color: '#e74c3c', margin: '8px 0 0' }}>{error}</p>}
             <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
               <button type="button" style={styles.cancelBtn} onClick={onClose}>Cancel</button>
-              <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Update'}</button>
+              <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Savingâ€¦' : 'Update'}</button>
             </div>
           </form>
         )}

@@ -8,6 +8,7 @@ import UsersPage from './pages/UsersPage';
 import DataPage from './pages/DataPage';
 import InvitesPage from './pages/InvitesPage';
 import SurveyPage from './pages/SurveyPage';
+import PowerPage from './pages/PowerPage';
 import Nav from './pages/Nav';
 
 export default function App() {
@@ -36,7 +37,7 @@ export default function App() {
   const errorBanner = banner && (
     <div style={styles.banner} role="alert">
       <span>{banner}</span>
-      <button style={styles.bannerClose} onClick={() => setBanner(null)}>✕</button>
+      <button style={styles.bannerClose} onClick={() => setBanner(null)}>âœ•</button>
     </div>
   );
 
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/invites" element={<InvitesPage />} />
           <Route path="/survey" element={<SurveyPage />} />
           <Route path="/data" element={<DataPage />} />
+          <Route path="/power" element={<PowerPage />} />
         </Routes>
       </main>
     </BrowserRouter>
