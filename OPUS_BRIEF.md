@@ -163,3 +163,33 @@ review.
 ### Sequencing: R6 + R7 are safe ANYTIME (admin-only, no participant
 surface). R3/R4/R5 next; R1 + R2 are the v2 core and pair naturally with
 the StudyKit fork decision.
+
+---
+
+## Security & code-quality audit (2026-07-12, Fable portfolio pass)
+
+_Repo is PUBLIC and the study is FROZEN — this pass changed no code. The
+code-security posture is genuinely good (see CLAUDE.md "Security posture" — all
+verified this pass: Prisma-parameterized, CORS locked, CSV-injection guarded,
+secret fail-fast, bcrypt(12), and the admin public→`requireAuth`→protected boundary
+is correctly ordered). Sensitive/operational items are tracked privately in
+`C:\Users\snoww\PORTFOLIO_SECURITY_AUDIT.md` (B1–B3). Non-sensitive summary:_
+
+- **⚠️ Top action, no code needed: change the default admin password now.** The
+  admin panel guards the whole participant dataset; the account email is public (in
+  CLAUDE.md), login isn't rate-limited, and CLAUDE.md says the password is still the
+  setup default. That combination is the one thing that shouldn't wait for the study
+  to unfreeze. Detail in the private doc (B1).
+- **Admin JWT model is fine** — `requireAuth` is header-based, so the `router.use`
+  ordering pitfall that bit DIWTK does NOT apply here. No admin IDOR.
+- **Participant UUID-as-URL-credential** is a documented, accepted tradeoff (no
+  cross-participant escalation), but the UUID rides in the path → Vercel logs. Treat
+  as a data-governance note in the study's data-management plan, not a code fix
+  (B2). **Do not change participant routes mid-study.**
+- **For StudyKit v2 (the unfrozen successor):** fold in informed-consent capture +
+  a participant data-deletion/withdrawal path (IRB items, already on the optional
+  list — they pair with R1/R2), add DB-backed login throttling, and close the
+  login timing/enumeration oracle (compare against a dummy hash on unknown email).
+- No automated tests on the backend; the goal-auto-completion criteria engine
+  (`lib/goalProgress.ts`) is the highest-value place for fixture tests in a rebuild
+  (it's the logic the study's outcomes depend on).
