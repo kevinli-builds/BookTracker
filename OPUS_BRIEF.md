@@ -14,6 +14,13 @@ Verify current state before implementing._
 **Safe to build ANYTIME (admin-only, no participant surface)** — §5 R6 analysis-bundle export (tidy CSVs + codebook) ⭐. **R7 power calculator SHIPPED (2026-07-11)** — admin `/power` page over pure `web/src/lib/power.ts` (two-proportion Fleiss uncorrected + continuity-corrected, two-mean via Cohen's d, Acklam normal quantile; 9 tests against canonical table values; vitest now wired in `web/` — `npm test`).
 **Post-study v2 backlog (in order)** — §5 R1 configurable tracked-activity ⭐ + R2 study-phases ⭐ (these two are also the in-place path to the StudyKit product idea in `PROJECT_IDEAS.md`), then R3–R5. **Architecture doc: `STUDYKIT_V2.md` (2026-07-11)** — fork-vs-in-place verdict (in-place after `study-1-final` tag), additive schemas, goal-criteria generalization, phase resolution rules, build order (R2 → R1 → R6).
 **Before any feature** — the device pilot (P1) still has not run on a physical phone.
+**Usability audit (2026-07-12, NOTES ONLY — study frozen, no code changed)** —
+participant RN app: no positioning/touch hazards found; check-ins are immutable **by
+design** (data integrity) — for StudyKit v2 consider a short (~5 min) undo window for
+fat-finger submissions; goals already have Abandon. Admin web: shared `tableStyles`
+tables have no horizontal-scroll wrapper, so pages squish/page-scroll on a phone —
+desktop-fine, low priority; post-study, wrap the `<table>`s in an `overflowX:auto` div
+(Users/Invites/Dashboard/Data/Survey pages).
 
 ## 1. Product roadmap (PM)
 
