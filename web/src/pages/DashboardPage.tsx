@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AdminData, getAdminData } from '../api/client';
-import { PageHeader, tableStyles } from '../components/ui';
+import { PageHeader, TableScroll, tableStyles } from '../components/ui';
 
 export default function DashboardPage() {
   const [data, setData] = useState<AdminData | null>(null);
@@ -25,6 +25,7 @@ export default function DashboardPage() {
       </div>
 
       <h2 style={s.h2}>Top Books Across All Users</h2>
+      <TableScroll>
       <table style={s.table}>
         <thead>
           <tr>
@@ -43,8 +44,10 @@ export default function DashboardPage() {
           ))}
         </tbody>
       </table>
+      </TableScroll>
 
       <h2 style={s.h2}>Goal Completion Rates</h2>
+      <TableScroll>
       <table style={s.table}>
         <thead>
           <tr>
@@ -70,6 +73,7 @@ export default function DashboardPage() {
           ))}
         </tbody>
       </table>
+      </TableScroll>
     </div>
   );
 }

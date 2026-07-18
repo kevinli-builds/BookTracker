@@ -13,7 +13,7 @@ import {
   setHideTrackingGroups,
 } from '../api/client';
 import { downloadCsv } from '../lib/csv';
-import { ExportButton, PageHeader, tableStyles } from '../components/ui';
+import { ExportButton, PageHeader, TableScroll, tableStyles } from '../components/ui';
 import ParticipantDetail from '../components/ParticipantDetail';
 
 export default function UsersPage() {
@@ -228,6 +228,7 @@ export default function UsersPage() {
 
       {result && <p style={s.result}>{result}</p>}
 
+      <TableScroll>
       <table style={s.table}>
         <thead>
           <tr>
@@ -277,6 +278,7 @@ export default function UsersPage() {
           ))}
         </tbody>
       </table>
+      </TableScroll>
 
       {filtered.length === 0 && (
         <p style={{ color: '#999', marginTop: 24, textAlign: 'center' }}>

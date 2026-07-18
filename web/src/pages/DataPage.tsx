@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AdminData, GoalProgress, getAdminData, getGoalProgress } from '../api/client';
 import { downloadCsv } from '../lib/csv';
-import { ExportButton, PageHeader, tableStyles } from '../components/ui';
+import { ExportButton, PageHeader, TableScroll, tableStyles } from '../components/ui';
 
 export default function DataPage() {
   const [data, setData] = useState<AdminData | null>(null);
@@ -102,6 +102,7 @@ export default function DataPage() {
           {!progress || progress.length === 0 ? (
             <p style={s.empty}>No active or completed goals yet.</p>
           ) : (
+            <TableScroll>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -136,6 +137,7 @@ export default function DataPage() {
                 ))}
               </tbody>
             </table>
+            </TableScroll>
           )}
         </div>
       )}
@@ -149,6 +151,7 @@ export default function DataPage() {
           {data.recentFeedback.length === 0 ? (
             <p style={s.empty}>No feedback submitted yet.</p>
           ) : (
+            <TableScroll>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -178,6 +181,7 @@ export default function DataPage() {
                 ))}
               </tbody>
             </table>
+            </TableScroll>
           )}
         </div>
       )}
@@ -188,6 +192,7 @@ export default function DataPage() {
             <p style={s.count}>{data.goalCompletionRates.length} goals</p>
             <ExportButton onClick={exportGoals}>Export CSV</ExportButton>
           </div>
+          <TableScroll>
           <table style={s.table}>
             <thead>
               <tr>
@@ -213,6 +218,7 @@ export default function DataPage() {
               ))}
             </tbody>
           </table>
+          </TableScroll>
           {data.goalCompletionRates.length === 0 && (
             <p style={s.empty}>No goal data yet.</p>
           )}

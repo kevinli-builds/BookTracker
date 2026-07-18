@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserDetail, getUserDetail, updateUser } from '../api/client';
+import { TableScroll } from './ui';
 
 // Per-participant management modal: rename, withdraw/reactivate, and a read-only
 // view of their logs, goals (with auto-checked progress), and feedback.
@@ -106,6 +107,7 @@ export default function ParticipantDetail({
 
         <h3 style={s.sectionTitle}>Goals ({detail.goals.length})</h3>
         {detail.goals.length === 0 ? <p style={s.muted}>No goals assigned.</p> : (
+          <TableScroll>
           <table style={s.innerTable}>
             <thead><tr><th style={s.ith}>Goal</th><th style={s.ith}>Progress</th><th style={s.ith}>Met</th><th style={s.ith}>Status</th></tr></thead>
             <tbody>
@@ -119,10 +121,12 @@ export default function ParticipantDetail({
               ))}
             </tbody>
           </table>
+          </TableScroll>
         )}
 
         <h3 style={s.sectionTitle}>Recent reading ({detail.logs.length})</h3>
         {detail.logs.length === 0 ? <p style={s.muted}>No books logged yet.</p> : (
+          <TableScroll>
           <table style={s.innerTable}>
             <thead><tr><th style={s.ith}>Title</th><th style={s.ith}>Author</th><th style={s.ith}>Min</th><th style={s.ith}>Date</th></tr></thead>
             <tbody>
@@ -136,6 +140,7 @@ export default function ParticipantDetail({
               ))}
             </tbody>
           </table>
+          </TableScroll>
         )}
 
         <h3 style={s.sectionTitle}>Feedback ({detail.feedback.length})</h3>

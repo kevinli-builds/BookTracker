@@ -9,6 +9,13 @@ export const tableStyles: Record<string, React.CSSProperties> = {
   mono: { fontFamily: 'monospace', fontSize: 12 },
 };
 
+// ── Horizontal-scroll container for wide tables (phones) ─────────────────────
+// Desktop rendering is unchanged (no overflow → no scrollbar); on narrow
+// screens the table scrolls inside this box instead of squishing the page.
+export function TableScroll({ children }: { children: React.ReactNode }) {
+  return <div style={{ overflowX: 'auto', borderRadius: 10 }}>{children}</div>;
+}
+
 // ── Page header with optional right-aligned actions ──────────────────────────
 export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
   return (

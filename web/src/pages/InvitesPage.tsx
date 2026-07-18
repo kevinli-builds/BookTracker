@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { InviteCode, createInvites, deleteInvite, getInvites } from '../api/client';
 import { downloadCsv } from '../lib/csv';
-import { ConfirmDialog, ExportButton, PageHeader, tableStyles } from '../components/ui';
+import { ConfirmDialog, ExportButton, PageHeader, TableScroll, tableStyles } from '../components/ui';
 
 type Mode = 'count' | 'labels';
 
@@ -197,6 +197,7 @@ export default function InvitesPage() {
       <p style={s.meta}>{invites.length} codes · {usedCount} redeemed · {invites.length - usedCount} available</p>
 
       {loading ? <p>Loading…</p> : (
+        <TableScroll>
         <table style={s.table}>
           <thead>
             <tr>
@@ -230,6 +231,7 @@ export default function InvitesPage() {
             ))}
           </tbody>
         </table>
+        </TableScroll>
       )}
 
       {!loading && invites.length === 0 && (
