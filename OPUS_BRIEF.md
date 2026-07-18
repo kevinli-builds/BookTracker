@@ -17,10 +17,11 @@ Verify current state before implementing._
 **Usability audit (2026-07-12, NOTES ONLY — study frozen, no code changed)** —
 participant RN app: no positioning/touch hazards found; check-ins are immutable **by
 design** (data integrity) — for StudyKit v2 consider a short (~5 min) undo window for
-fat-finger submissions; goals already have Abandon. Admin web: shared `tableStyles`
-tables have no horizontal-scroll wrapper, so pages squish/page-scroll on a phone —
-desktop-fine, low priority; post-study, wrap the `<table>`s in an `overflowX:auto` div
-(Users/Invites/Dashboard/Data/Survey pages).
+fat-finger submissions; goals already have Abandon. **Admin-table follow-up SHIPPED
+(2026-07-13, admin-only)** — all 9 admin tables (Dashboard, Data×3, Invites,
+Participants, ParticipantDetail inner×2) wrapped in a shared `TableScroll`
+(`overflowX:auto`, `ui.tsx`) so the panel is usable on a phone; desktop unchanged;
+zero participant-surface changes.
 
 ## 1. Product roadmap (PM)
 
