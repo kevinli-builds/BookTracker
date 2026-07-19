@@ -11,7 +11,18 @@ Verify current state before implementing._
 ## 0. Status ledger (2026-07-05) + how to pick up
 
 **Status: FROZEN during the study.** Schema changes mid-study corrupt the dataset — do NOT ship participant-facing changes while data collection is live. (The default admin password is a known open item the user is handling separately — do not block on it.)
-**Safe to build ANYTIME (admin-only, no participant surface)** — §5 R6 analysis-bundle export (tidy CSVs + codebook) ⭐. **R7 power calculator SHIPPED (2026-07-11)** — admin `/power` page over pure `web/src/lib/power.ts` (two-proportion Fleiss uncorrected + continuity-corrected, two-mean via Cohen's d, Acklam normal quantile; 9 tests against canonical table values; vitest now wired in `web/` — `npm test`).
+**R6 analysis-bundle export SHIPPED (2026-07-18, admin-only)** — Data page "Analysis
+bundle" card → one click builds a zip: 8 tidy CSVs (participants, reading_logs, goals
+incl. abandoned w/ criteria_met, goal_templates, feedback, survey_questions, check-ins
+long + wide), `codebook.md` (every column + coding decisions: local-date streaks,
+categories/pageCount era caveats, auto-completion, prompt-editability), and
+`study_config.json` snapshot. New admin-only `GET /admin/bundle` (behind `requireAuth`;
+the per-page endpoints truncate — /data caps feedback at 50, /goal-progress drops
+abandoned) + pure `web/src/lib/analysisBundle.ts` (11 fixture tests; jszip client-side
+zip). Zero participant surface, zero schema. Also: `npm audit fix` in web/ (axios
+form-data + react-router advisories; prod deps now 0 vulns; remaining esbuild/vite one
+is dev-server-only, needs a breaking Vite major — skipped).
+**R7 power calculator SHIPPED (2026-07-11)** — admin `/power` page over pure `web/src/lib/power.ts` (two-proportion Fleiss uncorrected + continuity-corrected, two-mean via Cohen's d, Acklam normal quantile; 9 tests against canonical table values; vitest now wired in `web/` — `npm test`).
 **Post-study v2 backlog (in order)** — §5 R1 configurable tracked-activity ⭐ + R2 study-phases ⭐ (these two are also the in-place path to the StudyKit product idea in `PROJECT_IDEAS.md`), then R3–R5. **Architecture doc: `STUDYKIT_V2.md` (2026-07-11)** — fork-vs-in-place verdict (in-place after `study-1-final` tag), additive schemas, goal-criteria generalization, phase resolution rules, build order (R2 → R1 → R6).
 **Before any feature** — the device pilot (P1) still has not run on a physical phone.
 **Usability audit (2026-07-12, NOTES ONLY — study frozen, no code changed)** —

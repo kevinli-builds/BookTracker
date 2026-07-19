@@ -316,6 +316,80 @@ export async function getAllLogs(): Promise<AdminReadingLog[]> {
   return data;
 }
 
+// ── Analysis bundle (complete tables for the one-click zip export) ──────────
+
+export interface BundleIdentity {
+  displayName: string | null;
+  studyGroup: string | null;
+  inviteCode: InviteRef | null;
+}
+
+export interface AnalysisBundleData {
+  exportedAt: string;
+  users: {
+    id: string;
+    displayName: string | null;
+    status: 'active' | 'withdrawn';
+    studyGroup: string | null;
+    createdAt: string;
+    streak: { currentStreak: number; longestStreak: number; lastReadDate: string | null } | null;
+    inviteCode: InviteRef | null;
+    _count: { logs: number; userGoals: number };
+  }[];
+  logs: {
+    id: string;
+    userId: string;
+    user: BundleIdentity;
+    googleBooksId: string;
+    title: string;
+    author: string;
+    categories: string[];
+    pageCount: number | null;
+    minutesRead: number;
+    loggedAt: string;
+  }[];
+  userGoals: {
+    id: string;
+    userId: string;
+    user: BundleIdentity;
+    template: GoalTemplate;
+    status: 'active' | 'completed' | 'abandoned';
+    assignedBy: 'self' | 'system';
+    assignedAt: string;
+    completedAt: string | null;
+    deadline: string | null;
+    progress: string;
+    met: boolean;
+    autoCheckable: boolean;
+  }[];
+  goalTemplates: (GoalTemplate & { _count: { userGoals: number } })[];
+  feedback: {
+    id: string;
+    userId: string;
+    user: BundleIdentity | null;
+    userGoalId: string;
+    userGoal: { template: { title: string } };
+    rating: number | null;
+    text: string | null;
+    createdAt: string;
+  }[];
+  surveyConfig: { cadenceDays: number } | null;
+  surveyQuestions: SurveyQuestion[];
+  surveyResponses: {
+    id: string;
+    userId: string;
+    user: BundleIdentity;
+    answers: Record<string, number | string>;
+    submittedAt: string;
+  }[];
+  studyConfig: { hideTrackingGroups: string[] } | null;
+}
+
+export async function getAnalysisBundle(): Promise<AnalysisBundleData> {
+  const { data } = await api.get('/admin/bundle');
+  return data;
+}
+
 // ── Invite codes ─────────────────────────────────────────────────────────────
 
 export interface InviteCode {

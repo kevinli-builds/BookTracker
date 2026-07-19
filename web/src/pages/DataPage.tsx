@@ -1,13 +1,30 @@
 import React, { useEffect, useState } from 'react';
-import { AdminData, GoalProgress, getAdminData, getGoalProgress } from '../api/client';
-import { downloadCsv } from '../lib/csv';
+import JSZip from 'jszip';
+import { AdminData, GoalProgress, getAdminData, getAnalysisBundle, getGoalProgress } from '../api/client';
+import { downloadBlob, downloadCsv } from '../lib/csv';
+import { buildAnalysisBundleFiles } from '../lib/analysisBundle';
 import { ExportButton, PageHeader, TableScroll, tableStyles } from '../components/ui';
 
 export default function DataPage() {
   const [data, setData] = useState<AdminData | null>(null);
   const [progress, setProgress] = useState<GoalProgress[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bundling, setBundling] = useState(false);
   const [tab, setTab] = useState<'feedback' | 'goals' | 'progress'>('progress');
+
+  // One click → zip of tidy CSVs + codebook.md + study-config snapshot.
+  const downloadBundle = async () => {
+    setBundling(true);
+    try {
+      const bundle = await getAnalysisBundle();
+      const zip = new JSZip();
+      for (const file of buildAnalysisBundleFiles(bundle)) zip.file(file.name, file.content);
+      const blob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(`booktracker-analysis-bundle-${bundle.exportedAt.slice(0, 10)}.zip`, blob);
+    } finally {
+      setBundling(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -74,6 +91,20 @@ export default function DataPage() {
   return (
     <div>
       <PageHeader title="Research Data" />
+
+      <div style={s.bundleCard}>
+        <div>
+          <div style={s.bundleTitle}>Analysis bundle</div>
+          <div style={s.bundleHint}>
+            Everything in one zip: tidy CSVs (participants, logs, goals, feedback,
+            check-ins long + wide), a codebook documenting every column, and a
+            study-config snapshot.
+          </div>
+        </div>
+        <ExportButton onClick={downloadBundle} disabled={bundling}>
+          {bundling ? 'Building…' : 'Download .zip'}
+        </ExportButton>
+      </div>
 
       <div style={s.tabs}>
         {(['progress', 'feedback', 'goals'] as const).map(t => (
@@ -238,6 +269,20 @@ function Stars({ rating }: { rating: number }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
+  bundleCard: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap',
+    background: '#f8f8fc',
+    border: '1px solid #e5e5f0',
+    borderRadius: 10,
+    padding: '14px 16px',
+    marginBottom: 20,
+  },
+  bundleTitle: { fontWeight: 700, fontSize: 14, color: '#1a1a2e' },
+  bundleHint: { fontSize: 13, color: '#666', marginTop: 2, maxWidth: 520 },
   tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #eee' },
   tab: {
     background: 'none',

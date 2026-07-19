@@ -5,3 +5,5 @@ dist/
 .expo/
 .expo-shared/
 .DS_Store
+
+.vercel

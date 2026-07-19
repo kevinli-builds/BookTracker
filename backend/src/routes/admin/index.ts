@@ -6,6 +6,7 @@ import goalsRouter from './goals';
 import invitesRouter from './invites';
 import dataRouter from './data';
 import surveyRouter from './survey';
+import bundleRouter from './bundle';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use(goalsRouter);
 router.use(invitesRouter);
 router.use(dataRouter);
 router.use(surveyRouter);
+router.use(bundleRouter);
 
 export default router;
